@@ -247,7 +247,7 @@ static int Get_MP_Tables() {
     return 1;
 }
 
-inline int APIC_Read(int reg) {
+static inline int APIC_Read(int reg) {
     int ret;
 
     __asm("pushfl");
@@ -258,7 +258,7 @@ inline int APIC_Read(int reg) {
     return ret;
 }
 
-inline void APIC_Write(int reg, unsigned int value) {
+static inline void APIC_Write(int reg, unsigned int value) {
     __asm("pushfl");
     __asm("cli");               // disable interrupts
     *((volatile unsigned int *)(APIC_Addr + reg)) = value;
@@ -266,7 +266,7 @@ inline void APIC_Write(int reg, unsigned int value) {
 
 }
 
-inline void IOAPIC_Write(const int offset, const int val) {
+static inline void IOAPIC_Write(const int offset, const int val) {
     __asm("pushfl");
     __asm("cli");               // disable interrupts
     /* tell IOREGSEL where we want to write to */
@@ -276,7 +276,7 @@ inline void IOAPIC_Write(const int offset, const int val) {
     __asm("popfl");             // enable interrupts if previously enabled
 }
 
-inline int IOAPIC_Read(const unsigned char offset) {
+static inline int IOAPIC_Read(const unsigned char offset) {
     int ret;
 
     __asm("pushfl");
@@ -290,9 +290,8 @@ inline int IOAPIC_Read(const unsigned char offset) {
 
 /*
  * Send an interprocessor interrupt to the processor associated with APIC_Id.
- *
  */
-static int send_IPI(int APIC_Id, int mask) {
+int send_IPI(int APIC_Id, int mask) {
     int try;
     int status = 1;
 
