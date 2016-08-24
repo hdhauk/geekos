@@ -32,7 +32,7 @@ static struct TSS s_theTSS[MAX_CPUS];
 static struct Segment_Descriptor *s_tssDesc[MAX_CPUS];
 static ushort_t s_tssSelector[MAX_CPUS];
 
-__inline__ void Load_Task_Register(void) {
+static __inline__ void Load_Task_Register(void) {
     int cpu = Get_CPU_ID();
 
     KASSERT(s_tssDesc[cpu]);
