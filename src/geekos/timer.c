@@ -172,13 +172,13 @@ static void Spin(int count) {
  * how many iterations of the loop are executed per timer tick.
  */
 static void Calibrate_Delay(void) {
-    Disable_Interrupts();
+    Deprecated_Disable_Interrupts();
 
     /* Install temporarily interrupt handler */
     Install_IRQ(TIMER_IRQ, &Timer_Calibrate);
     Enable_IRQ(TIMER_IRQ);
 
-    Enable_Interrupts();
+    Deprecated_Enable_Interrupts();
 
     /* Wait a few ticks */
     while (g_numTicks < CALIBRATE_NUM_TICKS) ;
@@ -190,14 +190,14 @@ static void Calibrate_Delay(void) {
      */
     Spin(INT_MAX);
 
-    Disable_Interrupts();
+    Deprecated_Disable_Interrupts();
 
     /*
      * Mask out the timer IRQ again,
      * since we will be installing a real timer interrupt handler.
      */
     Disable_IRQ(TIMER_IRQ);
-    Enable_Interrupts();
+    Deprecated_Enable_Interrupts();
 }
 
 /* ----------------------------------------------------------------------

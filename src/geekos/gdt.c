@@ -57,7 +57,7 @@ static struct Segment_Descriptor *Allocate_Segment_Descriptor_From(struct
     int i;
     bool iflag;
 
-    iflag = Begin_Int_Atomic();
+    iflag = Deprecated_Begin_Int_Atomic();
 
     /* Note; entry 0 is unused (thus never allocated) */
     for(i = 1; i < NUM_GDT_ENTRIES; ++i) {
@@ -70,7 +70,7 @@ static struct Segment_Descriptor *Allocate_Segment_Descriptor_From(struct
         }
     }
 
-    End_Int_Atomic(iflag);
+    Deprecated_End_Int_Atomic(iflag);
 
     return result;
 }
@@ -88,7 +88,7 @@ struct Segment_Descriptor *Allocate_Segment_Descriptor_On_CPU(int cpu) {
  * Free a segment descriptor.
  */
 void Free_Segment_Descriptor(struct Segment_Descriptor *desc) {
-    bool iflag = Begin_Int_Atomic();
+    bool iflag = Deprecated_Begin_Int_Atomic();
 
     KASSERT(!desc->avail);
 
@@ -96,7 +96,7 @@ void Free_Segment_Descriptor(struct Segment_Descriptor *desc) {
     desc->avail = 1;
     --s_numAllocated;
 
-    End_Int_Atomic(iflag);
+    Deprecated_End_Int_Atomic(iflag);
 }
 
 /*

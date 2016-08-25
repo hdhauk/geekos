@@ -48,7 +48,7 @@ static void GPF_Handler(struct Interrupt_State *state) {
         /* KASSERT(false); */
     }
 
-    Enable_Interrupts();        /* Exit will expects interrupts to be enabled. */
+    Deprecated_Enable_Interrupts();     /* Exit will expects interrupts to be enabled. */
     Exit(-1);
 
     /* We will never get here */
@@ -72,7 +72,7 @@ static void Syscall_Handler(struct Interrupt_State *state) {
     if(syscallNum >= g_numSyscalls) {
         Print("Illegal system call %d by process %d\n",
               syscallNum, CURRENT_THREAD->pid);
-        Enable_Interrupts();
+        Deprecated_Enable_Interrupts();
         Exit(-1);
 
         /* We will never get here */

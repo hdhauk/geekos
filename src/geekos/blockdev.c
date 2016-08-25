@@ -204,19 +204,19 @@ void Post_Request_And_Wait(struct Block_Request *request) {
     /* Send request to the driver */
     Debug("Posting block device request [@%p]...\n", request);
     /* avoid possible deadlock */
-    Disable_Interrupts();
+    Deprecated_Disable_Interrupts();
     Add_To_Back_Of_Block_Request_List(dev->requestQueue, request);
     Wake_Up(dev->waitQueue);
-    Enable_Interrupts();
+    Deprecated_Enable_Interrupts();
 
     /* Wait for request to be processed */
-    Disable_Interrupts();
+    Deprecated_Disable_Interrupts();
     while (request->state == PENDING) {
         Debug("Waiting, state=%d\n", request->state);
         Wait(&request->waitQueue);
     }
     Debug("Wait completed!\n");
-    Enable_Interrupts();
+    Deprecated_Enable_Interrupts();
 }
 
 /*
@@ -227,13 +227,13 @@ struct Block_Request *Dequeue_Request(struct Block_Request_List
                                       struct Thread_Queue *waitQueue) {
     struct Block_Request *request;
 
-    Disable_Interrupts();
+    Deprecated_Disable_Interrupts();
     while (!
            (request =
             Remove_From_Front_Of_Block_Request_List(requestQueue))) {
         Wait(waitQueue);
     }
-    Enable_Interrupts();
+    Deprecated_Enable_Interrupts();
 
     return request;
 }
@@ -243,7 +243,7 @@ struct Block_Request *Dequeue_Request(struct Block_Request_List
  */
 void Notify_Request_Completion(struct Block_Request *request,
                                enum Request_State state, int errorCode) {
-    Disable_Interrupts();
+    Deprecated_Disable_Interrupts();
     // Spin_Lock(&kthreadLock);
     request->state = state;
     request->errorCode = errorCode;
@@ -251,7 +251,7 @@ void Notify_Request_Completion(struct Block_Request *request,
     Wake_Up(&request->waitQueue);
     // Print("--- in Notify_Request_Completion: core %d\n", Get_CPU_ID()); 
     // Spin_Unlock(&kthreadLock);
-    Enable_Interrupts();
+    Deprecated_Enable_Interrupts();
 }
 
 /*

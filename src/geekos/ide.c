@@ -169,7 +169,7 @@ static int IDE_Read(int driveNum, int blockNum, char *buffer) {
         // Print ("    sector %d\n", sector);
     }
 #ifndef NS_INTERRUPTABLE_NO_GLOBAL_LOCK
-    reEnable = Begin_Int_Atomic();
+    reEnable = Deprecated_Begin_Int_Atomic();
 #endif
 
     Out_Byte(IDE_SECTOR_COUNT_REGISTER, 1);
@@ -201,7 +201,7 @@ static int IDE_Read(int driveNum, int blockNum, char *buffer) {
         Print("read buffer \n");
 
 #ifndef NS_INTERRUPTABLE_NO_GLOBAL_LOCK
-    End_Int_Atomic(reEnable);
+    Deprecated_End_Int_Atomic(reEnable);
 #endif
 
     return IDE_ERROR_NO_ERROR;
@@ -240,7 +240,7 @@ static int IDE_Write(int driveNum, int blockNum, char *buffer) {
         Print("    sector %d\n", sector);
     }
 #ifndef NS_INTERRUPTABLE_NO_GLOBAL_LOCK
-    reEnable = Begin_Int_Atomic();
+    reEnable = Deprecated_Begin_Int_Atomic();
 #endif
 
     Out_Byte(IDE_SECTOR_COUNT_REGISTER, 1);
@@ -269,7 +269,7 @@ static int IDE_Write(int driveNum, int blockNum, char *buffer) {
     if(In_Byte(IDE_STATUS_REGISTER) & IDE_STATUS_DRIVE_ERROR) {
         Print("ERROR: Got Read %d\n", In_Byte(IDE_STATUS_REGISTER));
 #ifndef NS_INTERRUPTABLE_NO_GLOBAL_LOCK
-        End_Int_Atomic(reEnable);
+        Deprecated_End_Int_Atomic(reEnable);
 #endif
         return IDE_ERROR_DRIVE_ERROR;
     }
@@ -278,7 +278,7 @@ static int IDE_Write(int driveNum, int blockNum, char *buffer) {
         Print("write completed \n");
 
 #ifndef NS_INTERRUPTABLE_NO_GLOBAL_LOCK
-    End_Int_Atomic(reEnable);
+    Deprecated_End_Int_Atomic(reEnable);
 #endif
 
     return IDE_ERROR_NO_ERROR;

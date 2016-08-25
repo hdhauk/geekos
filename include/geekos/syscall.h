@@ -155,12 +155,21 @@ retType name params {							\
     __asm__ __volatile__ (SYSCALL : "=a" (rc) :"a" (sysNum) regs);	\
     return (retType) rc;						\
 }
+
+#ifndef __has_builtin
+#define __has_builtin(x) 0
+#endif
+#if (GCC_VERSION >= 40500) || __has_builtin(__builtin_unreachable)
+#define unreachable()  __builtin_unreachable()
+#else
+#define unreachable() do { } while(1);
+#endif
 #define DEF_SYSCALL_NORETURN(name,num,retType,params,argDefs,regs)		\
 retType name params {							\
     int sysNum = (num), rc;						\
     argDefs								\
     __asm__ __volatile__ (SYSCALL : "=a" (rc) :"a" (sysNum) regs);	\
-    __builtin_unreachable(); \
+    unreachable(); \
 }
 
 #endif /* GEEKOS_SYSCALL_H */

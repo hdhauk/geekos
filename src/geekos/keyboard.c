@@ -328,14 +328,14 @@ void Init_Keyboard(void) {
 bool Read_Key(Keycode * keycode) {
     bool result, iflag;
 
-    iflag = Begin_Int_Atomic();
+    iflag = Deprecated_Begin_Int_Atomic();
 
     result = !Is_Queue_Empty();
     if(result) {
         *keycode = Dequeue_Keycode();
     }
 
-    End_Int_Atomic(iflag);
+    Deprecated_End_Int_Atomic(iflag);
 
     return result;
 }
@@ -364,7 +364,7 @@ Keycode Wait_For_Key(void) {
         return keycode;
     }
 
-    iflag = Begin_Int_Atomic();
+    iflag = Deprecated_Begin_Int_Atomic();
 
     do {
         gotKey = !Is_Queue_Empty()
@@ -375,7 +375,7 @@ Keycode Wait_For_Key(void) {
     }
     while (!gotKey);
 
-    End_Int_Atomic(iflag);
+    Deprecated_End_Int_Atomic(iflag);
 
     return keycode;
 }

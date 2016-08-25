@@ -64,9 +64,9 @@ int Eth_Transmit(struct Net_Device *device, struct Net_Buf *nBuf,
         return rc;
     }
 
-    Disable_Interrupts();
+    Deprecated_Disable_Interrupts();
     device->transmit(device, buffer, size);
-    Enable_Interrupts();
+    Deprecated_Enable_Interrupts();
 
     return 0;
 }

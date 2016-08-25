@@ -643,9 +643,9 @@ bool Kernel_Is_Locked(void) {
 
 struct Kernel_Thread *get_current_thread(int atomic) {
     TODO_P(PROJECT_PERCPU, "Replace get_current_thread");
-    int i = atomic ? Begin_Int_Atomic() : 0;    /* an interrupt could break us between the cpuid get and the subscript */
+    int i = atomic ? Deprecated_Begin_Int_Atomic() : 0; /* an interrupt could break us between the cpuid get and the subscript */
     struct Kernel_Thread *ret = g_currentThreads[Get_CPU_ID()];
     if(atomic)
-        End_Int_Atomic(i);
+        Deprecated_End_Int_Atomic(i);
     return ret;
 }

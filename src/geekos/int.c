@@ -65,11 +65,12 @@ void Init_Interrupts(int cpuID) {
     }
 
     /* Re-enable interrupts */
-    __Enable_Interrupts();
+    __Deprecated_Enable_Interrupts();
 }
 
 /*
  * Query whether or not interrupts are currently enabled.
+ * Never grabbed the big kernel lock; did not need deprecation.
  */
 bool Interrupts_Enabled(void) {
     ulong_t eflags = Get_Current_EFLAGS();

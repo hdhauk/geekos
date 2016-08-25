@@ -50,14 +50,14 @@ extern void *_end;              /* can be defined as the last symbol in the code
 static void Alarm_Handler(ulong_t arg __attribute__ ((unused))) {
     struct Alarm_Event *alarm = NULL;
     while (1) {
-        Disable_Interrupts();
+        Deprecated_Disable_Interrupts();
         //Print("Running alarm handler\n");
         if(!Is_Alarm_Handler_Queue_Empty(&s_alarmPendingQueue)) {
 
             alarm =
                 Remove_From_Front_Of_Alarm_Handler_Queue
                 (&s_alarmPendingQueue);
-            Enable_Interrupts();
+            Deprecated_Enable_Interrupts();
 
             DEBUG_ALARM("al: %p ", alarm);
             KASSERT0(alarm, "first alarm handler in queue is null");
@@ -74,7 +74,7 @@ static void Alarm_Handler(ulong_t arg __attribute__ ((unused))) {
             Free(alarm);
         } else {
             Wait(&s_threadQueue);
-            Enable_Interrupts();
+            Deprecated_Enable_Interrupts();
         }
     }
 }
@@ -120,12 +120,12 @@ int Alarm_Create(Alarm_Callback callback, void *data,
     alarmEvent->data = data;
     alarmEvent->thread = CURRENT_THREAD;
 
-    Disable_Interrupts();
+    Deprecated_Disable_Interrupts();
 
     id = Start_Timer(Calc_Ticks_Per_MS(milliSeconds),
                      System_Timer_Callback);
     if(id < 0) {
-        Enable_Interrupts();
+        Deprecated_Enable_Interrupts();
         DEBUG_ALARM("In Alarm_Create, failed to Start_Timer\n");
         return -1;
     }
@@ -133,7 +133,7 @@ int Alarm_Create(Alarm_Callback callback, void *data,
     alarmEvent->timerId = id;
     // registeredAlarms[id] = alarmEvent;
     Add_To_Front_Of_Alarm_Handler_Queue(&s_alarmWaitingQueue, alarmEvent);
-    Enable_Interrupts();
+    Deprecated_Enable_Interrupts();
     return id;
 
 }
@@ -148,9 +148,9 @@ int Alarm_Cancel_For_Thread(struct Kernel_Thread *thread) {
         next = Get_Next_In_Alarm_Handler_Queue(alarm);
         if(alarm->thread == thread) {
             Remove_From_Alarm_Handler_Queue(&s_alarmWaitingQueue, alarm);
-            Enable_Interrupts();
+            Deprecated_Enable_Interrupts();
             Free(alarm);
-            Disable_Interrupts();
+            Deprecated_Disable_Interrupts();
         }
     }
 
@@ -158,23 +158,23 @@ int Alarm_Cancel_For_Thread(struct Kernel_Thread *thread) {
 }
 
 int Alarm_Destroy(int id) {
-    Disable_Interrupts();
+    Deprecated_Disable_Interrupts();
 
     struct Alarm_Event *alarm =
         Alarm_Find_In_Queue_By_ID(&s_alarmWaitingQueue, id);
     if(alarm) {
         Remove_From_Alarm_Handler_Queue(&s_alarmWaitingQueue, alarm);
         Cancel_Timer(id);
-        Enable_Interrupts();
+        Deprecated_Enable_Interrupts();
         Free(alarm);
     } else {
         alarm = Alarm_Find_In_Queue_By_ID(&s_alarmPendingQueue, id);
         if(alarm) {
             Remove_From_Alarm_Handler_Queue(&s_alarmPendingQueue, alarm);
-            Enable_Interrupts();
+            Deprecated_Enable_Interrupts();
             Free(alarm);
         } else {
-            Enable_Interrupts();
+            Deprecated_Enable_Interrupts();
         }
     }
     return 0;

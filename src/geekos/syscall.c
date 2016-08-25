@@ -101,7 +101,7 @@ static int Sys_Null(struct Interrupt_State *state
  *   Never returns to user mode!
  */
 static int Sys_Exit(struct Interrupt_State *state) {
-    Enable_Interrupts();        /* ns14 */
+    Deprecated_Enable_Interrupts();     /* ns14 */
     Exit(state->ebx);
     /* We will never get here. */
 }
@@ -135,7 +135,7 @@ static int Sys_PrintString(struct Interrupt_State *state) {
     char *buf = 0;
 
     //    unlockKernel();
-    Enable_Interrupts();
+    Deprecated_Enable_Interrupts();
 
     if(length > 0) {
         /* Copy string into kernel. */
@@ -171,7 +171,7 @@ static int Sys_PrintString(struct Interrupt_State *state) {
 
     /* somehow, ends up being locked here */
     // lockKernel();
-    Disable_Interrupts();
+    Deprecated_Disable_Interrupts();
 
     return rc;
 }
@@ -250,7 +250,7 @@ static int Sys_Spawn(struct Interrupt_State *state) {
     char *command = 0;
     struct Kernel_Thread *process = NULL;
 
-    Enable_Interrupts();
+    Deprecated_Enable_Interrupts();
 
     /* Copy program name and command from user space. */
     if((rc =
@@ -277,7 +277,7 @@ static int Sys_Spawn(struct Interrupt_State *state) {
     if(command != 0)
         Free(command);
 
-    Disable_Interrupts();
+    Deprecated_Disable_Interrupts();
 
     return rc;
 }
@@ -293,7 +293,7 @@ static int Sys_Wait(struct Interrupt_State *state) {
     int exitCode;
     struct Kernel_Thread *kthread;
 
-    Enable_Interrupts();
+    Deprecated_Enable_Interrupts();
     kthread = Lookup_Thread(state->ebx, 0);
     if(kthread == 0) {
         // can't find the process id passed
@@ -308,7 +308,7 @@ static int Sys_Wait(struct Interrupt_State *state) {
     }
     exitCode = Join(kthread);
   finish:
-    Disable_Interrupts();
+    Deprecated_Disable_Interrupts();
     return exitCode;
 }
 
@@ -526,7 +526,7 @@ static int Sys_Open(struct Interrupt_State *state) {
     struct File *file;
     int rc = 0;
 
-    Enable_Interrupts();
+    Deprecated_Enable_Interrupts();
 
     rc = get_path_from_registers(state->ebx, state->ecx, &path);
     if(rc != 0) {
@@ -543,7 +543,7 @@ static int Sys_Open(struct Interrupt_State *state) {
     Free(path);
 
   leave:
-    Disable_Interrupts();
+    Deprecated_Disable_Interrupts();
     if(rc >= 0) {
         return add_file_to_descriptor_table(file);
     } else {
@@ -578,10 +578,10 @@ static int Sys_Close(struct Interrupt_State *state) {
         return EINVALID;
     }
     if(CURRENT_THREAD->userContext->file_descriptor_table[state->ebx]) {
-        Enable_Interrupts();
+        Deprecated_Enable_Interrupts();
         Close(CURRENT_THREAD->userContext->
               file_descriptor_table[state->ebx]);
-        Disable_Interrupts();
+        Deprecated_Disable_Interrupts();
         CURRENT_THREAD->userContext->file_descriptor_table[state->ebx] =
             0;
         return 0;
@@ -668,7 +668,7 @@ static int Sys_Read(struct Interrupt_State *state) {
     }
     if(CURRENT_THREAD->userContext->file_descriptor_table[state->ebx]) {
         void *data_buffer;
-        Enable_Interrupts();
+        Deprecated_Enable_Interrupts();
         data_buffer = Malloc(state->edx);
         if(!data_buffer) {
             return ENOMEM;
@@ -683,7 +683,7 @@ static int Sys_Read(struct Interrupt_State *state) {
             }
         }
         Free(data_buffer);
-        Disable_Interrupts();
+        Deprecated_Disable_Interrupts();
         return bytes_read;
     } else {
         return ENOTFOUND;
@@ -719,15 +719,15 @@ static int Sys_Write(struct Interrupt_State *state) {
         return EINVALID;
     }
     if(CURRENT_THREAD->userContext->file_descriptor_table[state->ebx]) {
-        Enable_Interrupts();
+        Deprecated_Enable_Interrupts();
         void *data_buffer = Malloc(state->edx);
         if(!data_buffer) {
-            Disable_Interrupts();
+            Deprecated_Disable_Interrupts();
             return ENOMEM;
         }
         if(!Copy_From_User(data_buffer, state->ecx, state->edx)) {
             Free(data_buffer);
-            Disable_Interrupts();
+            Deprecated_Disable_Interrupts();
             return EINVALID;
         }
         bytes_written =
@@ -735,7 +735,7 @@ static int Sys_Write(struct Interrupt_State *state) {
                   file_descriptor_table[state->ebx], data_buffer,
                   state->edx);
         Free(data_buffer);
-        Disable_Interrupts();
+        Deprecated_Disable_Interrupts();
         return bytes_written;
     } else {
         return ENOTFOUND;
@@ -819,7 +819,7 @@ static int Sys_Format(struct Interrupt_State *state) {
     int rc = 0;
     char *devname = 0, *fstype = 0;
 
-    Enable_Interrupts();
+    Deprecated_Enable_Interrupts();
 
     if((rc =
         Copy_User_String(state->ebx, state->ecx, BLOCKDEV_MAX_NAME_LEN,
@@ -836,7 +836,7 @@ static int Sys_Format(struct Interrupt_State *state) {
         Free(devname);
     if(fstype != 0)
         Free(fstype);
-    Disable_Interrupts();
+    Deprecated_Disable_Interrupts();
     return rc;
 }
 
@@ -939,9 +939,9 @@ static int Sys_Execl(struct Interrupt_State *state) {
 
 static int Sys_Diagnostic(struct Interrupt_State *state) {
     (void)state;                /* warning appeasement */
-    Enable_Interrupts();
+    Deprecated_Enable_Interrupts();
     Dump_Blockdev_Stats();
-    Disable_Interrupts();
+    Deprecated_Disable_Interrupts();
     return 0;
 }
 
@@ -958,14 +958,14 @@ static int Sys_Disk_Properties(struct Interrupt_State *state) {
     char *path;
     unsigned int block_size, blocks_per_disk;
     int rc;
-    Enable_Interrupts();
+    Deprecated_Enable_Interrupts();
     Copy_User_String(state->ebx, state->ecx, 100, &path);
     rc = Disk_Properties(path, &block_size, &blocks_per_disk);
     if(rc == 0) {
         Copy_To_User(state->edx, &block_size, sizeof(unsigned int));
         Copy_To_User(state->esi, &blocks_per_disk, sizeof(unsigned int));
     }
-    Disable_Interrupts();
+    Deprecated_Disable_Interrupts();
     return 0;
 }
 

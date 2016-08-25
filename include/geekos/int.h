@@ -114,13 +114,27 @@ extern void unlockKernel();
 extern bool Kernel_Is_Locked();
 
 /*
- * Block interrupts.
+ * Block interrupts.  While making geekos speak multiple
+ * processors, a great big lock was acquired in this process.
+ * The pairing of the two is now deprecated and should be
+ * removed over time toward an explicit Disable_Interrupts 
+ * coupled with lockKernel() as needed.
  */
-static __inline__ void __Disable_Interrupts(void) {
+static __inline__ void __Deprecated_Disable_Interrupts(void) {
     __asm__ __volatile__("cli");        /* ns - reversed so that spin lock acquired first, */
     /* then put back after interrupted by handlers while lock held. */
     lockKernel();
 }
+
+static __inline__ void __Disable_Interrupts(void) {
+    __asm__ __volatile__("cli");
+}
+
+#define Deprecated_Disable_Interrupts()		\
+do {					\
+    KASSERT(Interrupts_Enabled());	\
+    __Deprecated_Disable_Interrupts();		\
+} while (0)
 
 #define Disable_Interrupts()		\
 do {					\
@@ -128,18 +142,29 @@ do {					\
     __Disable_Interrupts();		\
 } while (0)
 
+
 /*
  * Unblock interrupts.
  */
-static __inline__ void __Enable_Interrupts(void) {
+static __inline__ void __Deprecated_Enable_Interrupts(void) {
     unlockKernel();
     __asm__ __volatile__("sti");
 }
 
-#define Enable_Interrupts()		\
+static __inline__ void __Enable_Interrupts(void) {
+    __asm__ __volatile__("sti");
+}
+
+#define Deprecated_Enable_Interrupts()		\
 do {					\
     KASSERT(!Interrupts_Enabled());	\
     KASSERT(Kernel_Is_Locked());	\
+    __Deprecated_Enable_Interrupts();		\
+} while (0)
+
+#define Enable_Interrupts()		\
+do {					\
+    KASSERT(!Interrupts_Enabled());	\
     __Enable_Interrupts();		\
 } while (0)
 
@@ -153,10 +178,10 @@ void Dump_Interrupt_State(struct Interrupt_State *state);
  * @return true if interrupts were enabled at beginning of call,
  * false otherwise.
  */
-static __inline__ bool Begin_Int_Atomic(void) {
+static __inline__ bool Deprecated_Begin_Int_Atomic(void) {
     bool enabled = Interrupts_Enabled();
     if(enabled)
-        Disable_Interrupts();
+        Deprecated_Disable_Interrupts();
     else {
         /* ns 2014; this may be a bad idea, but it brings consistency to the migration
            of interrupt disabling === holding the great big lock in cases where only the
@@ -168,15 +193,29 @@ static __inline__ bool Begin_Int_Atomic(void) {
     return enabled;
 }
 
+static __inline__ bool Begin_Int_Atomic(void) {
+    bool interrupts_were_enabled = Interrupts_Enabled();
+    if(interrupts_were_enabled)
+        __Disable_Interrupts();
+    return interrupts_were_enabled;
+}
+
 /**
  * End interrupt-atomic region.
- * @param iflag the value returned from the original Begin_Int_Atomic() call.
+ * @param iflag the value returned from the original Deprecated_Begin_Int_Atomic() call.
  */
-static __inline__ void End_Int_Atomic(bool iflag) {
+static __inline__ void Deprecated_End_Int_Atomic(bool iflag) {
     KASSERT(!Interrupts_Enabled());
     if(iflag) {
         /* Interrupts were originally enabled, so turn them back on */
-        Enable_Interrupts();
+        Deprecated_Enable_Interrupts();
+    }
+}
+
+static __inline__ void End_Int_Atomic(bool interrupts_were_enabled) {
+    KASSERT(!Interrupts_Enabled());
+    if(interrupts_were_enabled) {
+        __Enable_Interrupts();
     }
 }
 

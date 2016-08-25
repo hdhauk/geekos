@@ -419,7 +419,7 @@ static bool Floppy_Seek(int drive, int cylinder, int head) {
         Start_Motor(drive);
         /*Micro_Delay(1000); */
 
-        Disable_Interrupts();
+        Deprecated_Disable_Interrupts();
 
         Floppy_Out(FDC_COMMAND_SEEK);
         Floppy_Out((head << 2) | (drive & 3));
@@ -429,7 +429,7 @@ static bool Floppy_Seek(int drive, int cylinder, int head) {
         Wait_For_Interrupt();
         Debug("Seek: got interrupt\n");
 
-        Enable_Interrupts();
+        Deprecated_Enable_Interrupts();
 
         Stop_Motor(drive);
 
@@ -469,7 +469,7 @@ static int Floppy_Transfer(int direction, int driveNum, int blockNum) {
     if(!Floppy_Seek(driveNum, cylinder, head))
         return -1;
 
-    Disable_Interrupts();
+    Deprecated_Disable_Interrupts();
 
     /* Set up DMA for transfer */
     Setup_DMA(dmaDirection, FDC_DMA, s_transferBuf, SECTOR_SIZE);
@@ -519,7 +519,7 @@ static int Floppy_Transfer(int direction, int driveNum, int blockNum) {
         result = 0;
     }
 
-    Enable_Interrupts();
+    Deprecated_Enable_Interrupts();
 
     /*STOP(); */
     return result;
@@ -618,9 +618,9 @@ void Init_Floppy(void) {
     Enable_IRQ(FDC_IRQ);
 
     /* Reset and calibrate the controller. */
-    Disable_Interrupts();
+    Deprecated_Disable_Interrupts();
     good = Reset_Controller();
-    Enable_Interrupts();
+    Deprecated_Enable_Interrupts();
     if(!good) {
         Print("  Failed to reset controller!\n");
         goto done;

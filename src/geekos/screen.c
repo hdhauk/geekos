@@ -411,22 +411,22 @@ void Clear_Screen(void) {
     int i;
     uint_t fill = FILL_DWORD;
 
-    bool iflag = Begin_Int_Atomic();
+    bool iflag = Deprecated_Begin_Int_Atomic();
 
     for(i = 0; i < NUM_SCREEN_DWORDS; ++i)
         *v++ = fill;
 
-    End_Int_Atomic(iflag);
+    Deprecated_End_Int_Atomic(iflag);
 }
 
 /*
  * Get current cursor position.
  */
 void Get_Cursor(int *row, int *col) {
-    bool iflag = Begin_Int_Atomic();
+    bool iflag = Deprecated_Begin_Int_Atomic();
     *row = s_cons.row;
     *col = s_cons.col;
-    End_Int_Atomic(iflag);
+    Deprecated_End_Int_Atomic(iflag);
 }
 
 /*
@@ -440,11 +440,11 @@ bool Put_Cursor(int row, int col) {
     if(row < 0 || row >= NUMROWS || col < 0 || col >= NUMCOLS)
         return false;
 
-    iflag = Begin_Int_Atomic();
+    iflag = Deprecated_Begin_Int_Atomic();
     s_cons.row = row;
     s_cons.col = col;
     Update_Cursor();
-    End_Int_Atomic(iflag);
+    Deprecated_End_Int_Atomic(iflag);
 
     return true;
 }
@@ -460,9 +460,9 @@ uchar_t Get_Current_Attr(void) {
  * Set the current character attribute.
  */
 void Set_Current_Attr(uchar_t attrib) {
-    bool iflag = Begin_Int_Atomic();
+    bool iflag = Deprecated_Begin_Int_Atomic();
     s_cons.currentAttr = attrib;
-    End_Int_Atomic(iflag);
+    Deprecated_End_Int_Atomic(iflag);
 }
 
 /*
@@ -470,10 +470,10 @@ void Set_Current_Attr(uchar_t attrib) {
  * using current attribute, handling scrolling, special characters, etc.
  */
 void Put_Char(int c) {
-    bool iflag = Begin_Int_Atomic();
+    bool iflag = Deprecated_Begin_Int_Atomic();
     Put_Char_Imp(c);
     Update_Cursor();
-    End_Int_Atomic(iflag);
+    Deprecated_End_Int_Atomic(iflag);
 }
 
 /*
@@ -481,11 +481,11 @@ void Put_Char(int c) {
  * position using current attribute.
  */
 void Put_String(const char *s) {
-    bool iflag = Begin_Int_Atomic();
+    bool iflag = Deprecated_Begin_Int_Atomic();
     while (*s != '\0')
         Put_Char_Imp(*s++);
     Update_Cursor();
-    End_Int_Atomic(iflag);
+    Deprecated_End_Int_Atomic(iflag);
 }
 
 /*
@@ -493,13 +493,13 @@ void Put_String(const char *s) {
  * using current attribute.
  */
 void Put_Buf(const char *buf, ulong_t length) {
-    bool iflag = Begin_Int_Atomic();
+    bool iflag = Deprecated_Begin_Int_Atomic();
     while (length > 0) {
         Put_Char_Imp(*buf++);
         --length;
     }
     Update_Cursor();
-    End_Int_Atomic(iflag);
+    Deprecated_End_Int_Atomic(iflag);
 }
 
 /* Support for Print(). */

@@ -68,11 +68,11 @@ static __inline__ void Mutex_Lock_Imp(struct Mutex *mutex) {
     KASSERT(!IS_HELD(mutex));
 
     /* Wait until the mutex is in an unlocked state */
-    Disable_Interrupts();
+    Deprecated_Disable_Interrupts();
 
     Mutex_Lock_Imp_Interrupts_Disabled(mutex);
 
-    Enable_Interrupts();
+    Deprecated_Enable_Interrupts();
 }
 
 static __inline__ void Mutex_Unlock_Imp_Interrupts_Disabled(struct Mutex
@@ -108,12 +108,12 @@ static __inline__ void Mutex_Unlock_Imp_Interrupts_Disabled(struct Mutex
  * Unlock given mutex.
  */
 static __inline__ void Mutex_Unlock_Imp(struct Mutex *mutex) {
-    Disable_Interrupts();       /* an interrupt once could move us from one processor to another as
-                                   we figure out what the current thread id is.  This is no longer the 
-                                   case, since CURRENT_THREAD disables interrupts, but it's safer to proceed
-                                   with interrupts disabled, since we have to disable them anyway. */
+    Deprecated_Disable_Interrupts();    /* an interrupt once could move us from one processor to another as
+                                           we figure out what the current thread id is.  This is no longer the 
+                                           case, since CURRENT_THREAD disables interrupts, but it's safer to proceed
+                                           with interrupts disabled, since we have to disable them anyway. */
     Mutex_Unlock_Imp_Interrupts_Disabled(mutex);
-    Enable_Interrupts();
+    Deprecated_Enable_Interrupts();
 }
 
 
@@ -187,7 +187,7 @@ void Cond_Wait(struct Condition *cond, struct Mutex *mutex) {
      * is able to wait.  Therefore, this thread will not
      * miss the eventual notification on the condition.
      */
-    Disable_Interrupts();
+    Deprecated_Disable_Interrupts();
     /* ns15, switched to disable interrupts before unlocking the 
        mutex and waiting on the condition wait queue. */
     Mutex_Unlock_Imp_Interrupts_Disabled(mutex);
@@ -200,7 +200,7 @@ void Cond_Wait(struct Condition *cond, struct Mutex *mutex) {
      * On wakeup, disable preemption again.
      */
     Wait(&cond->waitQueue);
-    Enable_Interrupts();
+    Deprecated_Enable_Interrupts();
 
     /* Reacquire the mutex. */
     Mutex_Lock_Imp(mutex);
@@ -212,9 +212,9 @@ void Cond_Wait(struct Condition *cond, struct Mutex *mutex) {
  */
 void Cond_Signal(struct Condition *cond) {
     KASSERT(Interrupts_Enabled());
-    Disable_Interrupts();       /* prevent scheduling */
+    Deprecated_Disable_Interrupts();    /* prevent scheduling */
     Wake_Up_One(&cond->waitQueue);
-    Enable_Interrupts();        /* resume scheduling */
+    Deprecated_Enable_Interrupts();     /* resume scheduling */
 }
 
 /*
@@ -222,7 +222,7 @@ void Cond_Signal(struct Condition *cond) {
  * The mutex guarding the condition should be held!
  */
 void Cond_Broadcast(struct Condition *cond) {
-    int iflag = Begin_Int_Atomic();
+    int iflag = Deprecated_Begin_Int_Atomic();
     Wake_Up(&cond->waitQueue);
-    End_Int_Atomic(iflag);
+    Deprecated_End_Int_Atomic(iflag);
 }

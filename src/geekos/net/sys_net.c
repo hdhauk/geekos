@@ -74,7 +74,7 @@ extern int Sys_EthPacketSend(struct Interrupt_State *state) {
     if(rc != 0)
         goto fail;
 
-    Enable_Interrupts();
+    Deprecated_Enable_Interrupts();
 
     rc = Eth_Transmit(device, nBuf, destAddress, bufLength);
     if(rc != 0)
@@ -82,7 +82,7 @@ extern int Sys_EthPacketSend(struct Interrupt_State *state) {
 
     Net_Buf_Destroy(nBuf);
 
-    Disable_Interrupts();
+    Deprecated_Disable_Interrupts();
 
   fail:
     Free(buffer);
@@ -107,11 +107,11 @@ extern int Sys_EthPacketReceive(struct Interrupt_State *state) {
     if(rc != 0)
         goto fail;
 
-    Enable_Interrupts();
+    Deprecated_Enable_Interrupts();
 
     rc = Eth_Receive(device, &nBuf);
 
-    Disable_Interrupts();       /* interrupts must be disabled at the point where this function returns */
+    Deprecated_Disable_Interrupts();    /* interrupts must be disabled at the point where this function returns */
 
     if(rc != 0)
         goto fail;
@@ -160,13 +160,13 @@ extern int Sys_Arp(struct Interrupt_State *state) {
     /* Copy the address from user space */
     Copy_From_User(ipAddress.ptr, state->ebx, sizeof(IP_Address));
 
-    Enable_Interrupts();
+    Deprecated_Enable_Interrupts();
 
     /* Find the hardware address using the ARP protocol */
     rc = ARP_Resolve_Address(device, ARP_HTYPE_ETH, ARP_PTYPE_IPV4,
                              ipAddress.ptr, macAddress);
 
-    Disable_Interrupts();
+    Deprecated_Disable_Interrupts();
 
     if(rc != 0)
         goto fail;
@@ -214,16 +214,16 @@ extern int Sys_RouteAdd(struct Interrupt_State *state) {
             goto fail;
         }
 
-        Enable_Interrupts();
+        Deprecated_Enable_Interrupts();
         rc = Net_Add_Route(&ipAddress, &netmask, &gateway, 0, interface);
     }
 
     else {
-        Enable_Interrupts();
+        Deprecated_Enable_Interrupts();
         rc = Net_Add_Route(&ipAddress, &netmask, NULL, 0, interface);
     }
 
-    Disable_Interrupts();
+    Deprecated_Disable_Interrupts();
 
     if(rc != 0) {
         goto fail;
@@ -255,9 +255,9 @@ extern int Sys_RouteDel(struct Interrupt_State *state) {
         goto fail;
     }
 
-    Enable_Interrupts();
+    Deprecated_Enable_Interrupts();
     rc = Net_Delete_Route(&ipAddress, &netmask);
-    Disable_Interrupts();
+    Deprecated_Disable_Interrupts();
 
     if(rc != 0)
         return rc;
@@ -279,9 +279,9 @@ extern int Sys_RouteGet(struct Interrupt_State *state) {
     if(routes == NULL)
         return ENOMEM;
 
-    Enable_Interrupts();
+    Deprecated_Enable_Interrupts();
     TODO_P(PROJECT_ROUTING, "collect route table into routes");
-    Disable_Interrupts();
+    Deprecated_Disable_Interrupts();
 
     if(rc < 0)
         goto fail;
@@ -408,7 +408,7 @@ extern int Sys_IPSend(struct Interrupt_State *state) {
         goto fail;
     }
 
-    Enable_Interrupts();
+    Deprecated_Enable_Interrupts();
 
     TODO_P(PROJECT_IP,
            "construct a buffer with the ip frame and transmit");
@@ -416,7 +416,7 @@ extern int Sys_IPSend(struct Interrupt_State *state) {
   fail:
     Free(string);
 
-    Disable_Interrupts();
+    Deprecated_Disable_Interrupts();
 
     return rc;
 }
@@ -429,9 +429,9 @@ extern int Sys_IPSend(struct Interrupt_State *state) {
  */
 extern int Sys_Socket(struct Interrupt_State *state) {
     int rc;
-    Enable_Interrupts();
+    Deprecated_Enable_Interrupts();
     rc = Socket_Create((uchar_t) state->ebx, (int)state->ecx);
-    Disable_Interrupts();
+    Deprecated_Disable_Interrupts();
     return rc;
 }
 
@@ -448,9 +448,9 @@ extern int Sys_Bind(struct Interrupt_State *state) {
 
     Copy_From_User(address.ptr, state->edx, 4);
 
-    Enable_Interrupts();
+    Deprecated_Enable_Interrupts();
     rc = Socket_Bind(state->ebx, (ushort_t) state->ecx, &address);
-    Disable_Interrupts();
+    Deprecated_Disable_Interrupts();
 
     return rc;
 }
@@ -464,9 +464,9 @@ extern int Sys_Bind(struct Interrupt_State *state) {
 extern int Sys_Listen(struct Interrupt_State *state) {
     int rc;
 
-    Enable_Interrupts();
+    Deprecated_Enable_Interrupts();
     rc = Socket_Listen(state->ebx, state->ecx);
-    Disable_Interrupts();
+    Deprecated_Disable_Interrupts();
 
     return rc;
 }
@@ -483,9 +483,9 @@ extern int Sys_Accept(struct Interrupt_State *state) {
     ushort_t port;
     int rc;
 
-    Enable_Interrupts();
+    Deprecated_Enable_Interrupts();
     rc = Socket_Accept(state->ebx, &ip, &port);
-    Disable_Interrupts();
+    Deprecated_Disable_Interrupts();
 
     if(rc >= 0) {
         Copy_To_User(state->esi, ip.ptr, 4);
@@ -508,9 +508,9 @@ extern int Sys_Connect(struct Interrupt_State *state) {
 
     Copy_From_User(address.ptr, state->edx, 4);
 
-    Enable_Interrupts();
+    Deprecated_Enable_Interrupts();
     rc = Socket_Connect(state->ebx, (ushort_t) state->ecx, &address);
-    Disable_Interrupts();
+    Deprecated_Disable_Interrupts();
     return rc;
 }
 
@@ -532,9 +532,9 @@ extern int Sys_Send(struct Interrupt_State *state) {
 
     Copy_From_User(buffer, state->ecx, state->edx);
 
-    Enable_Interrupts();
+    Deprecated_Enable_Interrupts();
     rc = Socket_Send(state->ebx, buffer, state->edx);
-    Disable_Interrupts();
+    Deprecated_Disable_Interrupts();
 
     Free(buffer);
 
@@ -557,9 +557,9 @@ extern int Sys_Receive(struct Interrupt_State *state) {
     if(buffer == 0)
         return ENOMEM;
 
-    Enable_Interrupts();
+    Deprecated_Enable_Interrupts();
     rc = Socket_Receive(state->ebx, buffer, state->edx);
-    Disable_Interrupts();
+    Deprecated_Disable_Interrupts();
 
     if(rc > 0) {
         Copy_To_User(state->ecx, buffer, rc);
@@ -610,9 +610,9 @@ extern int Sys_ReceiveFrom(struct Interrupt_State *state) {
 extern int Sys_CloseSocket(struct Interrupt_State *state) {
     int rc;
 
-    Enable_Interrupts();
+    Deprecated_Enable_Interrupts();
     rc = Socket_Close(state->ebx);
-    Disable_Interrupts();
+    Deprecated_Disable_Interrupts();
 
     return rc;
 }

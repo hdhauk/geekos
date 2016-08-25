@@ -51,11 +51,11 @@ void Make_Runnable(struct Kernel_Thread *kthread) {
  * Atomically make a thread runnable.
  */
 void Make_Runnable_Atomic(struct Kernel_Thread *kthread) {
-    int iflag = Begin_Int_Atomic();
+    int iflag = Deprecated_Begin_Int_Atomic();
     Spin_Lock(&run_queue_spinlock);
     Make_Runnable(kthread);
     Spin_Unlock(&run_queue_spinlock);
-    End_Int_Atomic(iflag);
+    Deprecated_End_Int_Atomic(iflag);
 }
 
 
@@ -113,7 +113,7 @@ struct Kernel_Thread *Get_Next_Runnable(void) {
     struct Kernel_Thread *ret;
 
     /* ns14 */
-    //Enable_Interrupts();
+    //Deprecated_Enable_Interrupts();
     if(!Try_Spin_Lock(&run_queue_spinlock)) {
         /* attempt at dealing with the potential problem of waiting for the
            kthread lock while holding the global lock... prefer to schedule
@@ -136,7 +136,7 @@ struct Kernel_Thread *Get_Next_Runnable(void) {
     Spin_Unlock(&run_queue_spinlock);
 
     /* ns14 */
-    //Disable_Interrupts();
+    //Deprecated_Disable_Interrupts();
     g_preemptionDisabled[Get_CPU_ID()] = false;
 
     /* at least could be the idle thread */

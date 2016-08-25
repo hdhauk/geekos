@@ -135,7 +135,7 @@ union type_pun_workaround {
              "unhandled kernel-mode page fault.");
 
     /* For now, just kill the thread/process. */
-    Enable_Interrupts();
+    Deprecated_Enable_Interrupts();
     Exit(-1);
 }
 

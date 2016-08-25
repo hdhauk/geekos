@@ -55,7 +55,7 @@ static int Get_Next_Device_Number(const char *nameBase
 static void Net_Device_Receive_Thread(ulong_t arg
                                       __attribute__ ((unused))) {
     while (1) {
-        Disable_Interrupts();
+        Deprecated_Disable_Interrupts();
         if(!Is_Net_Device_Receive_Packet_Queue_Empty
            (&s_receivePacketQueue)) {
             struct Net_Buf *nBuf;
@@ -64,7 +64,7 @@ static void Net_Device_Receive_Thread(ulong_t arg
             packet =
                 Remove_From_Front_Of_Net_Device_Receive_Packet_Queue
                 (&s_receivePacketQueue);
-            Enable_Interrupts();
+            Deprecated_Enable_Interrupts();
 
             Net_Buf_Create(&nBuf);
             Net_Buf_Prepend(nBuf, packet->buffer, packet->bufferLen,
@@ -75,7 +75,7 @@ static void Net_Device_Receive_Thread(ulong_t arg
             Free(packet);
         } else {
             Wait(&s_receiveThreadQueue);
-            Enable_Interrupts();
+            Deprecated_Enable_Interrupts();
         }
     }
 }
@@ -127,12 +127,12 @@ int Register_Net_Device(struct Net_Device_Capabilities *caps,
     /* Add the device to the device list */
     Add_To_Back_Of_Net_Device_List(&s_deviceList, device);
 
-    Disable_Interrupts();
+    Deprecated_Disable_Interrupts();
 
     /* initialize the device being registered */
     rc = device->init(device);
 
-    Enable_Interrupts();
+    Deprecated_Enable_Interrupts();
 
     if(rc != 0) {
         Remove_From_Net_Device_List(&s_deviceList, device);

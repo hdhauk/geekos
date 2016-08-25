@@ -337,7 +337,7 @@ static void *Alloc_Or_Reclaim_Page(pte_t * entry, ulong_t vaddr,
        since it acts over a locked list. */
     paddr = Alloc_Page_Frame();
 
-    Disable_Interrupts();
+    Deprecated_Disable_Interrupts();
 
     KASSERT(!Interrupts_Enabled());
     KASSERT(Kernel_Is_Locked());
@@ -396,7 +396,7 @@ static void *Alloc_Or_Reclaim_Page(pte_t * entry, ulong_t vaddr,
   done:
     KASSERT(Kernel_Is_Locked());
     if(!enabled)
-        Enable_Interrupts();
+        Deprecated_Enable_Interrupts();
     return paddr;
 }
 
@@ -409,13 +409,13 @@ void *Alloc_Page(void) {
     int enabled = 0;
 
     if(!Interrupts_Enabled()) {
-        Enable_Interrupts();
+        Deprecated_Enable_Interrupts();
         enabled = 1;
     }
     ret = Alloc_Or_Reclaim_Page(NULL, 0, true);
 
     if(enabled)
-        Disable_Interrupts();
+        Deprecated_Disable_Interrupts();
 
     /*  nice idea, maybe, but there are call sites that handle 
        Alloc_Page failure. and quitting is not cool; uncomment
@@ -447,11 +447,11 @@ void *Alloc_Pageable_Page(pte_t * entry, ulong_t vaddr) {
 
     if(!Interrupts_Enabled()) {
         enabled = 1;
-        Enable_Interrupts();
+        Deprecated_Enable_Interrupts();
     }
     ret = Alloc_Or_Reclaim_Page(entry, vaddr, false);
     if(enabled)
-        Disable_Interrupts();
+        Deprecated_Disable_Interrupts();
     return ret;
 }
 

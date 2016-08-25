@@ -36,9 +36,9 @@ void *Malloc(ulong_t size) {
 
     KASSERT(size > 0);
 
-    iflag = Begin_Int_Atomic();
+    iflag = Deprecated_Begin_Int_Atomic();
     result = bget(size);
-    End_Int_Atomic(iflag);
+    Deprecated_End_Int_Atomic(iflag);
     return result;
 }
 
@@ -50,7 +50,7 @@ void Free(void *buf) {
     KASSERT0((((unsigned int)buf) & 0x3) == 0,
              "attempt to free a corrupted pointer (wasn't four-byte aligned).");
 
-    iflag = Begin_Int_Atomic();
+    iflag = Deprecated_Begin_Int_Atomic();
     brel(buf);
-    End_Int_Atomic(iflag);
+    Deprecated_End_Int_Atomic(iflag);
 }

@@ -150,7 +150,7 @@ void Init_DMA(void) {
  * @return true if successful, false if not
  */
 bool Reserve_DMA(int chan) {
-    bool iflag = Begin_Int_Atomic();
+    bool iflag = Deprecated_Begin_Int_Atomic();
     bool result = false;
 
     KASSERT(VALID_CHANNEL(chan));
@@ -164,7 +164,7 @@ bool Reserve_DMA(int chan) {
         result = true;
     }
 
-    End_Int_Atomic(iflag);
+    Deprecated_End_Int_Atomic(iflag);
 
     return result;
 }

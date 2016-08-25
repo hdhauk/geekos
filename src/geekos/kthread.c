@@ -241,13 +241,13 @@ void Detach_Thread(struct Kernel_Thread *kthread) {
        exiting; ensure interrupts are off for the queue
        manipulations. */
 
-    iflag = Begin_Int_Atomic();
+    iflag = Deprecated_Begin_Int_Atomic();
     count = --kthread->refCount;
 
     if(count == 0) {
         Reap_Thread(kthread);
     }
-    End_Int_Atomic(iflag);
+    Deprecated_End_Int_Atomic(iflag);
 }
 
 /*
@@ -257,7 +257,7 @@ void Detach_Thread(struct Kernel_Thread *kthread) {
  * a thread with interrupts disabled).
  */
 static void Launch_Thread(void) {
-    Enable_Interrupts();
+    Deprecated_Enable_Interrupts();
 }
 
 /*
@@ -438,7 +438,7 @@ static void Idle(ulong_t arg __attribute__ ((unused))) {
 static void Reaper(ulong_t arg __attribute__ ((unused))) {
     struct Kernel_Thread *kthread;
 
-    //     Disable_Interrupts();
+    //     Deprecated_Disable_Interrupts();
 
     while (true) {
         /* Interact directly with the queue lock, since we will take the entire list at once. */
@@ -449,9 +449,9 @@ static void Reaper(ulong_t arg __attribute__ ((unused))) {
             /* Graveyard is empty, so wait for a thread to die. */
             Spin_Unlock(&s_graveyardQueue.lock);
             Mutex_Unlock(&s_graveyardMutex);
-            Disable_Interrupts();
+            Deprecated_Disable_Interrupts();
             Wait(&s_reaperWaitQueue);
-            Enable_Interrupts();
+            Deprecated_Enable_Interrupts();
 
         } else {
             /* Make the graveyard queue empty. */
@@ -477,9 +477,9 @@ static void Reaper(ulong_t arg __attribute__ ((unused))) {
             /* maybe needed if we spend all our time with interrupts
                disabled, but if we are sane, we should spend our
                time in Wait(). */
-            //ns14 Enable_Interrupts();
+            //ns14 Deprecated_Enable_Interrupts();
             //ns14 Yield();
-            //ns14 Disable_Interrupts();
+            //ns14 Deprecated_Disable_Interrupts();
 
         }
     }
@@ -520,9 +520,9 @@ static void Tlocal_Exit(struct Kernel_Thread *curr) {
                 curr->tlocalData[i] = NULL;
                 called = 1;
 
-                Enable_Interrupts();
+                Deprecated_Enable_Interrupts();
                 s_tlocalDestructors[i] (x);
-                Disable_Interrupts();
+                Deprecated_Disable_Interrupts();
             }
         }
         if(!called)
@@ -675,10 +675,10 @@ void Schedule(void) {
  * Does nothing if no other threads are ready to run.
  */
 void Yield(void) {
-    Disable_Interrupts();
+    Deprecated_Disable_Interrupts();
     Make_Runnable_Atomic(get_current_thread(0));
     Schedule();
-    Enable_Interrupts();
+    Deprecated_Enable_Interrupts();
 }
 
 
@@ -703,18 +703,18 @@ void Exit(int exitCode) {
 
 
     /* Remove timer references this thread has held */
-    iflag = Begin_Int_Atomic(); /* seems less than necessary, but appeases. */
+    iflag = Deprecated_Begin_Int_Atomic();      /* seems less than necessary, but appeases. */
     Alarm_Cancel_For_Thread(current);
 
     /* Clean up any thread-local memory */
     Tlocal_Exit(CURRENT_THREAD);
 
 /* Notify the thread's owner, if any */ Wake_Up(&current->joinQueue);
-    End_Int_Atomic(iflag);
+    Deprecated_End_Int_Atomic(iflag);
 
 
     /* Remove the thread's implicit reference to itself. */
-    iflag = Begin_Int_Atomic(); /* fundamentally necessary to detach and schedule uninterrupted! */
+    iflag = Deprecated_Begin_Int_Atomic();      /* fundamentally necessary to detach and schedule uninterrupted! */
     Detach_Thread(CURRENT_THREAD);
 
     /*
@@ -723,7 +723,7 @@ void Exit(int exitCode) {
      * thread queue, it won't get scheduled again.
      */
     Schedule();
-    End_Int_Atomic(iflag);
+    Deprecated_End_Int_Atomic(iflag);
 
     /* Shouldn't get here */
     KASSERT(false);
@@ -739,7 +739,7 @@ int Join(struct Kernel_Thread *kthread) {
 
     KASSERT(Interrupts_Enabled());
 
-    Disable_Interrupts();
+    Deprecated_Disable_Interrupts();
 
     /* It is only legal for the owner to join */
     KASSERT(kthread->owner == CURRENT_THREAD);
@@ -757,7 +757,7 @@ int Join(struct Kernel_Thread *kthread) {
     kthread->detached = 1;
 
 
-    Enable_Interrupts();
+    Deprecated_Enable_Interrupts();
 
     /* Release our (the parent's) reference to the thread */
     Detach_Thread(kthread);
@@ -777,7 +777,7 @@ struct Kernel_Thread *Lookup_Thread(int pid, int notOwner) {
     struct Kernel_Thread *result = 0;
 
 
-    bool iflag = Begin_Int_Atomic();
+    bool iflag = Deprecated_Begin_Int_Atomic();
 
     struct Kernel_Thread *current = get_current_thread(0);      /* interrupts disabled, may use fast */
 
@@ -799,7 +799,7 @@ struct Kernel_Thread *Lookup_Thread(int pid, int notOwner) {
     }
     Spin_Unlock(&kthreadLock);
 
-    End_Int_Atomic(iflag);
+    Deprecated_End_Int_Atomic(iflag);
 
 
     return result;
@@ -920,7 +920,7 @@ void Wake_Up_One(struct Thread_Queue *waitQueue) {
  * Allocate a key for accessing thread-local data.
  */
 int Tlocal_Create(tlocal_key_t * key, tlocal_destructor_t destructor) {
-    bool iflag = Begin_Int_Atomic();
+    bool iflag = Deprecated_Begin_Int_Atomic();
 
     KASSERT(key);
 
@@ -929,7 +929,7 @@ int Tlocal_Create(tlocal_key_t * key, tlocal_destructor_t destructor) {
     s_tlocalDestructors[s_tlocalKeyCounter] = destructor;
     *key = s_tlocalKeyCounter++;
 
-    End_Int_Atomic(iflag);
+    Deprecated_End_Int_Atomic(iflag);
 
     return 0;
 }
@@ -965,7 +965,7 @@ void *Tlocal_Get(tlocal_key_t k) {
 void Dump_All_Thread_List(void) {
     struct Kernel_Thread *kthread;
     int count = 0;
-    bool iflag = Begin_Int_Atomic();
+    bool iflag = Deprecated_Begin_Int_Atomic();
 
     Spin_Lock(&kthreadLock);
 
@@ -985,5 +985,5 @@ void Dump_All_Thread_List(void) {
     Print("%d threads are running\n", count);
 
     Spin_Unlock(&kthreadLock);
-    End_Int_Atomic(iflag);
+    Deprecated_End_Int_Atomic(iflag);
 }
