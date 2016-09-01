@@ -11,3 +11,6 @@ build/tools/gfs2f
 build/tools/gfs2f.dSYM/
 build/user/*.o
 build/user/*.exe
+.vagrant
+qemu
+build/output.log
