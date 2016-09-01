@@ -34,7 +34,8 @@ EXTRA_CC_USER_OPTS := -Dmain=geekos_main -fwritable-strings
 endif
 
 #in new versions of qemu for linux can specify port...
-RANDOM_PORT := $(shell $(PROJECT_ROOT)/scripts/random_port)
+# RANDOM_PORT := $(shell $(PROJECT_ROOT)/scripts/random_port)
+# RANDOM_PORT=$(shell echo "$(($(($RANDOM % 1000)) + 10001))")
 
 NET_MAC_1 ?= 52:54:00:12:34:58
 NET_MAC_2 ?= 52:54:00:12:34:56

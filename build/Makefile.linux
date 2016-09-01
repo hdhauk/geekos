@@ -6,7 +6,8 @@
 
 include Makefile.common
 
-RANDOM_PORT := $(shell $(PROJECT_ROOT)/scripts/random_port)
+# RANDOM_PORT := $(shell $(PROJECT_ROOT)/scripts/random_port)
+# RANDOM_PORT=$(shell echo "$(($(($RANDOM % 1000)) + 10001))")
 # HOST := $(shell hostname)
 HOST := "localhost"
 
@@ -24,7 +25,9 @@ QEMU ?= $(QEMU_BIN) -smp 2 -icount 4 -smpQuantum 1000 -rtc clock=vm -rtc base=20
 
 # to use disk3d on hdb add "-drive format=raw,file=disk3d.img"
 
-DISP_OPTION = $(shell $(PROJECT_ROOT)/scripts/display_opt)
+# the following inlines the display_opt script, assuming xdpyinfo exists.
+#  $(PROJECT_ROOT)/scripts/display_opt)
+DISP_OPTION = $(shell xdpyinfo 2> /dev/null 1> /dev/null && echo -sdl || echo -curses)
 
 run: all gdbinit
 	echo $(NO_DISPLAY)

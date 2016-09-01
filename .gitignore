@@ -14,3 +14,4 @@ build/user/*.exe
 .vagrant
 qemu
 build/output.log
+build/.gdbinit

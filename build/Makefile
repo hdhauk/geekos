@@ -3,7 +3,7 @@ MACHTYPE?=$(shell uname -m)
 OSTYPE?=$(shell uname -s | tr A-Z a-z)
 
 QEMU_NO_KQEMU?=$(shell qemu-system-i386 --help | grep -e -no-kqemu | awk '{print $$1}') 
-RANDOM_PORT=1234
+RANDOM_PORT=$(shell awk 'BEGIN{srand();printf("%d", 10000 + 1000*rand())}')
 
 HAS_GDB_OPT=$(shell qemu-system-i386 --help | grep -e -gdb)
 ifneq "$(findstring -gdb,$(HAS_GDB_OPT))" ""
