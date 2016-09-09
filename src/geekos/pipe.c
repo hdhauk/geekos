@@ -18,9 +18,9 @@
 #include <geekos/int.h>
 
 
-struct File_Ops Pipe_Read_Ops =
+const struct File_Ops Pipe_Read_Ops =
     { NULL, Pipe_Read, NULL, NULL, Pipe_Close, NULL };
-struct File_Ops Pipe_Write_Ops =
+const struct File_Ops Pipe_Write_Ops =
     { NULL, NULL, Pipe_Write, NULL, Pipe_Close, NULL };
 
 int Pipe_Create(struct File **read_file, struct File **write_file) {

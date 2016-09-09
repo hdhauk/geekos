@@ -269,7 +269,8 @@ bool Copy_From_User(void *destInKernel, ulong_t srcInUser,
  *   doesn't correspond to memory the process has a right to
  *   access)
  */
-bool Copy_To_User(ulong_t destInUser, void *srcInKernel, ulong_t bufSize) {
+bool Copy_To_User(ulong_t destInUser, const void *srcInKernel,
+                  ulong_t bufSize) {
     struct User_Context *current = CURRENT_THREAD->userContext;
 
     if(!Validate_User_Memory(current, destInUser, bufSize, VUM_WRITING))

@@ -367,7 +367,7 @@ Keycode Wait_For_Key(void) {
     iflag = Deprecated_Begin_Int_Atomic();
 
     do {
-        gotKey = !Is_Queue_Empty()
+        gotKey = !Is_Queue_Empty();
         if(gotKey)
             keycode = Dequeue_Keycode();
         else

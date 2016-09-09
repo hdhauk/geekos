@@ -130,7 +130,8 @@ bool Copy_From_User(void *destInKernel, ulong_t srcInUser,
  * Copy data from kernel buffer into user buffer.
  * Returns true if successful, false otherwise.
  */
-bool Copy_To_User(ulong_t destInUser, void *srcInKernel, ulong_t numBytes) {
+bool Copy_To_User(ulong_t destInUser, const void *srcInKernel,
+                  ulong_t numBytes) {
     /*
      * Hints:
      * - Same as for Copy_From_User()

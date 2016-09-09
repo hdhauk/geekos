@@ -47,7 +47,7 @@ struct Filesystem_Ops {
 
 /* A mounted filesystem instance. */
 struct Mount_Point {
-    struct Mount_Point_Ops *ops;        /* Operations that can be performed on the mount. */
+    const struct Mount_Point_Ops *ops;  /* Operations that can be performed on the mount. */
     char *pathPrefix;           /* Path prefix where fs is mounted. */
     struct Block_Device *dev;   /* Block device filesystem is mounted on. */
     void *fsData;               /* For use by the filesystem implementation. */
@@ -88,7 +88,7 @@ struct File {
      * Filesystem mount function is responsible for initializing
      * the following fields:
      */
-    struct File_Ops *ops;       /* Operations that can be performed on the file. */
+    const struct File_Ops *ops; /* Operations that can be performed on the file. */
     ulong_t filePos;            /* Current position in the file. */
     ulong_t endPos;             /* End position (i.e., the length of the file). */
     void *fsData;               /* For use by the filesystem implementation. */

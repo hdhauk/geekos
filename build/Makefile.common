@@ -224,8 +224,8 @@ GENERRS := $(PERL) $(PROJECT_ROOT)/scripts/generrs
 # ----------------------------------------------------------------------
 
 # Flags used for all C source files
-# GENERAL_OPTS := -O -Wall $(EXTRA_C_OPTS) 
-GENERAL_OPTS := -Werror -Wall $(EXTRA_C_OPTS)
+GENERAL_OPTS := -O -Wall $(EXTRA_C_OPTS) 
+# GENERAL_OPTS := -Werror -Wall $(EXTRA_C_OPTS)
 CC_GENERAL_OPTS ?= $(GENERAL_OPTS) -W -Wwrite-strings -fno-stack-protector -Wno-unused -Wno-unused-parameter
 
 # Flags used for kernel C source files
@@ -442,6 +442,8 @@ tools/gfs3f: $(PROJECT_ROOT)/src/tools/gfs3f.c $(PROJECT_ROOT)/include/geekos/gf
 	$(HOST_CC) -g $(GFS3F_CFLAGS) -I$(PROJECT_ROOT)/include  $(PROJECT_ROOT)/src/geekos/gfs3.c $(PROJECT_ROOT)/src/geekos/bufcache.c $(PROJECT_ROOT)/src/geekos/bitset.c   $(PROJECT_ROOT)/src/tools/gfs3f.c $(PROJECT_ROOT)/src/tools/fake-blockdev.c -o $@ -lm
 
 # intentionally not .gdbinit so that the dependency is updated.
+# this rule attempts to set new ~/.gdbinit to enable the local .gdbinit,
+# for whatever reason, gdb is being oh-so-safe.
 .PHONY: gdbinit
 gdbinit: 
 	echo "target remote localhost:$(RANDOM_PORT)" > .gdbinit
@@ -450,3 +452,5 @@ gdbinit:
 	echo "commands 1" >> .gdbinit
 	echo "thread apply all bt" >> .gdbinit
 	echo "# auto generated in Makefile.common" >> .gdbinit
+	test -e $(HOME)/.gdbinit || echo add-auto-load-safe-path  `pwd`/.gdbinit > $(HOME)/.gdbinit
+	grep -q `pwd` $(HOME)/.gdbinit || echo add-auto-load-safe-path  `pwd`/.gdbinit >> $(HOME)/.gdbinit

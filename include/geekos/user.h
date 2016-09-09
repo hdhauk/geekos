@@ -137,7 +137,8 @@ int Load_User_Program(char *exeFileData, ulong_t exeFileLength,
                       struct User_Context **pUserContext);
 bool Copy_From_User(void *destInKernel, ulong_t srcInUser,
                     ulong_t bufSize);
-bool Copy_To_User(ulong_t destInUser, void *srcInKernel, ulong_t bufSize);
+bool Copy_To_User(ulong_t destInUser, const void *srcInKernel,
+                  ulong_t bufSize);
 #define VUM_WRITING 1
 #define VUM_READING 0
 bool Validate_User_Memory(struct User_Context *userContext,
