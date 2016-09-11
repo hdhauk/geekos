@@ -479,8 +479,8 @@ int Sync(void) {
  *
  * Returns: new File object, or null if out of memory
  */
-struct File *Allocate_File(struct File_Ops *ops, int filePos, int endPos,
-                           void *fsData, int mode,
+struct File *Allocate_File(const struct File_Ops *ops, int filePos,
+                           int endPos, void *fsData, int mode,
                            struct Mount_Point *mountPoint) {
     struct File *file;
 

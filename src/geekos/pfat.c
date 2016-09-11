@@ -355,7 +355,7 @@ static int PFAT_Close(struct File *file __attribute__ ((unused))) {
 /*
  * File_Ops for PFAT files.
  */
-static struct File_Ops s_pfatFileOps = {
+static const struct File_Ops s_pfatFileOps = {
     &PFAT_FStat,
     &PFAT_Read,
     &PFAT_Write,

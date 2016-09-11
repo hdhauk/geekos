@@ -142,8 +142,8 @@ int Stat(const char *path, struct VFS_File_Stat *stat);
 int Sync(void);
 
 /* File operations. */
-struct File *Allocate_File(struct File_Ops *ops, int filePos, int endPos,
-                           void *fsData, int mode,
+struct File *Allocate_File(const struct File_Ops *ops, int filePos,
+                           int endPos, void *fsData, int mode,
                            struct Mount_Point *mountPoint);
 int FStat(struct File *file, struct VFS_File_Stat *stat);
 int Read(struct File *file, void *buf, ulong_t len);

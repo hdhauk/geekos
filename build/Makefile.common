@@ -224,8 +224,8 @@ GENERRS := $(PERL) $(PROJECT_ROOT)/scripts/generrs
 # ----------------------------------------------------------------------
 
 # Flags used for all C source files
-# GENERAL_OPTS := -O -Wall $(EXTRA_C_OPTS) 
-GENERAL_OPTS := -Werror -Wall $(EXTRA_C_OPTS)
+# GENERAL_OPTS := -O -Wall $(EXTRA_C_OPTS)   # -O may cause a failure to startup.
+GENERAL_OPTS := -Werror -Wall $(EXTRA_C_OPTS) # -Werror may cause a failure to build.
 CC_GENERAL_OPTS ?= $(GENERAL_OPTS) -W -Wwrite-strings -fno-stack-protector -Wno-unused -Wno-unused-parameter
 
 # Flags used for kernel C source files
