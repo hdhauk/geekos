@@ -81,6 +81,9 @@ struct User_Interrupt_State {
     uint_t ssUser;
 };
 
+
+#ifdef GEEKOS                   /* stuff above may be used by user code. not obviously useful. */
+
 static __inline__ bool Is_User_Interrupt(struct Interrupt_State *state) {
     return (state->cs & 3) == USER_PRIVILEGE;
 }
@@ -219,4 +222,5 @@ static __inline__ void End_Int_Atomic(bool interrupts_were_enabled) {
     }
 }
 
+#endif /* GEEKOS */
 #endif /* GEEKOS_INT_H */

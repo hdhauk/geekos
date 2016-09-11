@@ -164,7 +164,7 @@ int main(int argc, char *argv[]) {
                     if(!strcmp(directory[j].fileName, dirname)) {
                         lseek(fd, directory[j].firstBlock * SECTOR_SIZE,
                               SEEK_SET);
-                        write(fd, dir, 512);
+                        assert(write(fd, dir, 512) == 512);
                         break;
                     }
                 }
