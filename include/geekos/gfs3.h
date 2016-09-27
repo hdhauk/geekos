@@ -34,7 +34,7 @@ typedef unsigned int gfs3_inodenum;     /* For inode numbers */
 struct gfs3_superblock {
     unsigned int gfs3_magic;    /* 0x47465333 */
     unsigned int gfs3_version;  /* 0x00000100 */
-    gfs3_blocknum block_with_inode_zero;        /* likely 4. */
+    gfs3_blocknum block_with_inode_zero;        /* likely 1. */
     unsigned int number_of_inodes;      /* calculated on format */
     unsigned int blocks_per_disk;       /* blocks in total */
     short setupStart;           /* first sector of secondary loader */

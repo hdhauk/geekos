@@ -254,7 +254,7 @@ TARGET_CC_ARCH=$(shell $(TARGET_CC) -dumpmachine)
 # I'm not getting this quite right, but I think the warning is important. -ns
 .PHONY: .crosscompilersanity
 .crosscompilersanity:
-	@echo $(TARGET_CC_ARCH) | egrep '(elf|i386-redhat-linux|i486-linux-gnu)' > /dev/null || echo "WARNING: $(TARGET_CC) builds for " $(TARGET_CC_ARCH)
+	@echo $(TARGET_CC_ARCH) | egrep '(elf|i386-redhat-linux|i486-linux-gnu)' > /dev/null || echo $(TARGET_CC) | grep m32 || echo "WARNING: $(TARGET_CC) builds for " $(TARGET_CC_ARCH)
 	@$(NASM) -help > /dev/null || echo "WARNING: nasm missing.  Perhaps sudo apt-get install nasm"
 	@mkdir -p geekos user tools libc common geekos/net geekos/sound
 
@@ -417,7 +417,7 @@ depend.mak :
 	touch $@
 
 # submission is not generally used, since the make submit rule is functional
-submission.zip:
+submission.zip: $(wildcard ../src/geekos/*.c) $(wildcard ../include/geekos/*.h)
 	make clean
 	cd .. && zip -r build/submission.zip src/*/* include/*/* build/Makefile* scripts
 
