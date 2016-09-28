@@ -1,3 +1,4 @@
+#include <geekos/signal.h>      /* apparently, mac sys/signal.h doesn't redefine if geekos/signal.h is first */
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
