@@ -252,17 +252,17 @@ Load_LDTR:
 ; Start paging
 ;	load crt3 with the passed page directory pointer
 ;	enable paging bit in cr2
+;; nspring - ecx is caller save, ebx is callee save. 
 align 8
 Enable_Paging:
 	mov	eax, [esp+4]
 	mov	cr3, eax
 	mov	eax, cr3
 	mov	cr3, eax
-	mov	ebx, cr0
-	or	ebx, 0x80000000
-	mov	cr0, ebx
+	mov	ecx, cr0
+	or	ecx, 0x80000000
+	mov	cr0, ecx
 	ret
-
 
 ;
 ; Change PDBR 

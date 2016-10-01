@@ -61,10 +61,11 @@ static inline void cpuid(int code, int *a, int *d) {
 }
 
 /* address of local APIC - generally at the default address */
-static char *APIC_Addr = (char *)0xFEE00000;
+static char *const APIC_Addr = (char *)0xFEE00000;
 
 /* address of IO APIC - generally at the default address */
-static volatile unsigned int *IO_APIC_Addr =
+/* the second volatile is necessary. -ns16 */
+static volatile unsigned int *volatile IO_APIC_Addr =
     (volatile unsigned int *)0xFEC00000;
 
 static Spin_Lock_t globalLock;
@@ -249,20 +250,31 @@ static int Get_MP_Tables() {
 
 static inline int APIC_Read(int reg) {
     int ret;
-
-    __asm("pushfl");
-    __asm("cli");               // disable interrupts
-    ret = *((volatile unsigned int *)(APIC_Addr + reg));
-    __asm("popfl");             // enable interrupts if previously enabled
-
+    /* nspring wrote in assembly to avoid optimization problems -ns16 */
+    __asm__ __volatile__("pushfl; cli; movl (%1), %0 ; popfl\n\t":
+                         "=a"(ret): "d"(APIC_Addr + reg));
     return ret;
+
+    /* 
+       __asm ("pushfl");
+       __asm ("cli"); // disable interrupts
+       ret = *((volatile unsigned int *) (APIC_Addr+reg));
+       __asm ("popfl"); // enable interrupts if previously enabled
+       return ret;
+     */
 }
 
 static inline void APIC_Write(int reg, unsigned int value) {
-    __asm("pushfl");
-    __asm("cli");               // disable interrupts
-    *((volatile unsigned int *)(APIC_Addr + reg)) = value;
-    __asm("popfl");             // enable interrupts if previously enabled
+    /* nspring wrote in assembly to avoid optimization problems -ns16 */
+    __asm__
+        __volatile__("pushfl; cli; movl %1, (%0) ; popfl\n\t"::"a"
+                     (APIC_Addr + reg), "d"(value));
+    /* 
+       __asm__ __volatile__("pushfl");
+       __asm__ __volatile__ ("cli"); // disable interrupts
+       *((volatile unsigned int *) (APIC_Addr+reg)) = value;
+       __asm__ __volatile__ ("popfl"); // enable interrupts if previously enabled
+     */
 
 }
 
@@ -290,8 +302,9 @@ static inline int IOAPIC_Read(const unsigned char offset) {
 
 /*
  * Send an interprocessor interrupt to the processor associated with APIC_Id.
+ * Must not be static; used by test code.
  */
-int send_IPI(int APIC_Id, int mask) {
+extern int send_IPI(int APIC_Id, int mask) {
     int try;
     int status = 1;
 
@@ -426,7 +439,7 @@ int Get_CPU_ID(void) {
     return apicid;
 }
 
-CPU_Info CPUs[MAX_CPUS];
+volatile CPU_Info CPUs[MAX_CPUS];
 
 /* 
  * START_SECONDARY_FUNC Must be updated if you change:
@@ -436,7 +449,7 @@ CPU_Info CPUs[MAX_CPUS];
  */
 #define START_SECONDARY_FUNC	((0x9020<<4) + 4096)
 
-void *Secondary_Stack;
+volatile void *Secondary_Stack;
 
 void Init_SMP(void) {
     int i;
@@ -480,7 +493,6 @@ void Init_SMP(void) {
         }
     }
 }
-
 
 /*
  * C Entry point for newly booted secondary CPUs

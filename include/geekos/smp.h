@@ -27,7 +27,7 @@ typedef struct CPU_Info {
     struct User_Context *s_currentUserContext;
 } CPU_Info;
 
-extern CPU_Info CPUs[];
+extern volatile CPU_Info CPUs[];
 
 int Get_CPU_ID(void);
 
@@ -35,6 +35,7 @@ void Map_IO_APIC_IRQ(int irq, void *handler);
 void Init_SMP();
 int Init_Local_APIC(int cpu);
 void Release_SMP();
+int send_IPI(int APIC_Id, int mask);
 
 struct Kernel_Thread *get_current_thread(int atomic);
 #define CURRENT_THREAD  	(get_current_thread(1))
