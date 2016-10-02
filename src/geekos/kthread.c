@@ -768,12 +768,20 @@ int Join(struct Kernel_Thread *kthread) {
 
 /*
  * Look up a thread by its process id.
- * notOwner is true if the thread is assumed to be the caller's
- * owner.  If the thread is NOT the owner, then it is assumed
- * the caller will not retain the extra reference with interrupts
- * enabled, or else the thread could die and create a dangling pointer.
+ * return_a_thread_even_if_not_my_child should be true if
+ * calling from a non parent (e.g., for kill), false if
+ * calling from a parent (e.g., for wait).
+ * 
+ * If the thread is NOT the owner, and thus doesn't have a
+ * reference to the child already, then it is assumed the
+ * caller will not retain the extra reference with
+ * interrupts enabled, or else the thread could die and
+ * create a dangling pointer.
  */
-struct Kernel_Thread *Lookup_Thread(int pid, int notOwner) {
+struct Kernel_Thread *Lookup_Thread(int pid,
+                                    int
+                                    return_a_thread_even_if_not_my_child) 
+{
     struct Kernel_Thread *result = 0;
 
 
@@ -791,7 +799,8 @@ struct Kernel_Thread *Lookup_Thread(int pid, int notOwner) {
     result = Get_Front_Of_All_Thread_List(&s_allThreadList);
     while (result != 0) {
         if(result->pid == pid) {
-            if(current != result->owner && !notOwner)
+            if(current != result->owner &&
+               !return_a_thread_even_if_not_my_child)
                 result = 0;
             break;
         }

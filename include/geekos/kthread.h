@@ -138,7 +138,9 @@ void Schedule(void);
 void Yield(void);
 void Exit(int exitCode) __attribute__ ((noreturn));
 int Join(struct Kernel_Thread *kthread);
-struct Kernel_Thread *Lookup_Thread(int pid, int notOwner);
+struct Kernel_Thread *Lookup_Thread(int pid,
+                                    int
+                                    return_a_thread_even_if_not_my_child);
 
 /*
  * Thread context switch function, defined in lowlevel.asm
