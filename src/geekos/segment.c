@@ -124,3 +124,5 @@ void Init_LDT_Descriptor(struct Segment_Descriptor *desc,
     desc->reserved = 0;
     desc->dbBit = 0;
 }
+
+/* // TODO(PERCPU, "write a function based on Init_LDT_Descriptor that initializes an LDT on each per-cpu GDT") */
