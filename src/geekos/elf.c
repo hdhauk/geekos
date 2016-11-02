@@ -88,6 +88,7 @@ int Parse_ELF_Executable(char *exeFileData, ulong_t exeFileLength,
         segment->lengthInFile = phdr[i].fileSize;
         segment->startAddress = phdr[i].vaddr;
         segment->sizeInMemory = phdr[i].memSize;
+        segment->protFlags = (phdr[i].flags & PF_W) ? VM_WRITE : 0;
 
         if(segment->lengthInFile > segment->sizeInMemory) {
             if(elfDebug)
