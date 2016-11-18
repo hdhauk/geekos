@@ -450,6 +450,8 @@ static void Reaper(ulong_t arg __attribute__ ((unused))) {
             Spin_Unlock(&s_graveyardQueue.lock);
             Mutex_Unlock(&s_graveyardMutex);
             Deprecated_Disable_Interrupts();
+            KASSERT0(Is_Thread_Queue_Empty(&s_reaperWaitQueue),
+                     "The reaper is the only thread that may be on the wait queue, once.  The reaper wait queue is, however, not empty when the reaper is ready to sleep.");
             Wait(&s_reaperWaitQueue);
             Deprecated_Enable_Interrupts();
 

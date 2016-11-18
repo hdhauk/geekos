@@ -433,7 +433,7 @@ static int Sys_GetTimeOfDay(struct Interrupt_State *state
 /*
  * Mount a filesystem.
  * Params:
- * state->ebx - contains a pointer to the Mount_Syscall_Args structure
+ * state->ebx - contains a pointer to the VFS_Mount_Request structure
  *   which contains the block device name, mount prefix,
  *   and filesystem type
  *

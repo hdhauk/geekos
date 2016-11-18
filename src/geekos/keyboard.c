@@ -71,7 +71,7 @@ static int s_queueHead, s_queueTail;
 /*
  * Wait queue for thread(s) waiting for keyboard events.
  */
-static struct Thread_Queue s_waitQueue;
+static struct Thread_Queue s_keyboardWaitQueue;
 
 /*
  * Translate from scan code to key code, when shift is not pressed.
@@ -280,7 +280,7 @@ void Keyboard_Interrupt_Handler(struct Interrupt_State *state) {
         Enqueue_Keycode(keycode);
 
         /* Wake up event consumers */
-        Wake_Up(&s_waitQueue);
+        Wake_Up(&s_keyboardWaitQueue);
 
         /*
          * Pick a new thread upon return from interrupt
@@ -371,7 +371,7 @@ Keycode Wait_For_Key(void) {
         if(gotKey)
             keycode = Dequeue_Keycode();
         else
-            Wait(&s_waitQueue);
+            Wait(&s_keyboardWaitQueue);
     }
     while (!gotKey);
 
