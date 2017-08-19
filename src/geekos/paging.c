@@ -135,7 +135,7 @@ union type_pun_workaround {
              "unhandled kernel-mode page fault.");
 
     /* For now, just kill the thread/process. */
-    Deprecated_Enable_Interrupts();
+    Enable_Interrupts();
     Exit(-1);
 }
 
@@ -180,6 +180,9 @@ void Init_Paging(void) {
            "Initialize paging file data structures");
 }
 
+/* guards your structure for tracking free space on the paging file. */
+static Spin_Lock_t s_free_space_spin_lock;
+
 /**
  * Find a free bit of disk on the paging file for this page.
  * Interrupts must be disabled.
@@ -187,9 +190,14 @@ void Init_Paging(void) {
  *   the paging file, or -1 if the paging file is full
  */
 int Find_Space_On_Paging_File(void) {
-    KASSERT(!Interrupts_Enabled());
+    unsigned int retval;
+    int iflag = Begin_Int_Atomic();
+    Spin_Lock(&s_free_space_spin_lock);
     TODO_P(PROJECT_VIRTUAL_MEMORY_B, "Find free page in paging file");
-    return EUNSUPPORTED;
+    retval = EUNSUPPORTED;
+    Spin_Unlock(&s_free_space_spin_lock);
+    End_Int_Atomic(iflag);
+    return retval;
 }
 
 /**
@@ -198,8 +206,11 @@ int Find_Space_On_Paging_File(void) {
  * @param pagefileIndex index of the chunk of disk space
  */
 void Free_Space_On_Paging_File(int pagefileIndex) {
-    /* KASSERT(!Interrupts_Enabled()); seems unnecessary - ns */
+    int iflag = Begin_Int_Atomic();
+    Spin_Lock(&s_free_space_spin_lock);
     TODO_P(PROJECT_VIRTUAL_MEMORY_B, "Free page in paging file");
+    Spin_Unlock(&s_free_space_spin_lock);
+    End_Int_Atomic(iflag);
 }
 
 /**

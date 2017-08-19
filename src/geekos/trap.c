@@ -40,6 +40,11 @@ static void GPF_Handler(struct Interrupt_State *state) {
           state->intNum, current, current->pid);
     Dump_Interrupt_State(state);
 
+    KASSERT0(state->gs < 2000,
+             "gs wildly out of bounds; catastrophic abort");
+    KASSERT0(state->cs < 2000,
+             "gs wildly out of bounds; catastrophic abort");
+
     if((state->ebp & ~0xfff) != (unsigned long)current->stackPage) {
         /* the following message is OK / informational if it's
            user code that GPF'd. */
@@ -48,7 +53,7 @@ static void GPF_Handler(struct Interrupt_State *state) {
         /* KASSERT(false); */
     }
 
-    Deprecated_Enable_Interrupts();     /* Exit will expects interrupts to be enabled. */
+    Enable_Interrupts();        /* Exit will expects interrupts to be enabled. */
     Exit(-1);
 
     /* We will never get here */
@@ -63,6 +68,8 @@ static void Syscall_Handler(struct Interrupt_State *state) {
     uint_t syscallNum;
     struct User_Context *user;
 
+    Enable_Interrupts();
+
     KASSERT(state);
     syscallNum = state->eax;
     g_preemptionDisabled[Get_CPU_ID()] = false; // ns15
@@ -72,7 +79,6 @@ static void Syscall_Handler(struct Interrupt_State *state) {
     if(syscallNum >= g_numSyscalls) {
         Print("Illegal system call %d by process %d\n",
               syscallNum, CURRENT_THREAD->pid);
-        Deprecated_Enable_Interrupts();
         Exit(-1);
 
         /* We will never get here */
@@ -84,6 +90,8 @@ static void Syscall_Handler(struct Interrupt_State *state) {
      * Return code of system call is returned in EAX.
      */
     state->eax = g_syscallTable[syscallNum] (state);
+
+    Disable_Interrupts();
 }
 
 /*

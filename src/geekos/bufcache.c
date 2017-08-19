@@ -30,6 +30,8 @@
 
 int bufCacheDebug = 0;
 #define Debug(args...) if (bufCacheDebug) Print("bufcache: " args)
+int debugReadCounter;
+int debugWriteCounter;
 
 /* XXX */
 int noEvict = 0;
@@ -77,6 +79,8 @@ static int Sync_Buffer(struct FS_Buffer_Cache *cache,
     KASSERT(IS_HELD(&cache->mutex));
 
     if(buf->flags & FS_BUFFER_DIRTY) {
+        Debug("Sync %d block %lu\n", ++debugWriteCounter,
+              buf->fsBlockNum);
         if((rc = Do_Buffer_IO(cache, buf, Block_Write)) == 0)
             buf->flags &= ~(FS_BUFFER_DIRTY);
     }
@@ -103,8 +107,6 @@ static int Get_Buffer(struct FS_Buffer_Cache *cache,
     struct FS_Buffer *buf, *lru = 0;
     int rc;
 
-    Debug("Request block %lu\n", fsBlockNum);
-
     KASSERT(IS_HELD(&cache->mutex));
 
     /*
@@ -116,13 +118,16 @@ static int Get_Buffer(struct FS_Buffer_Cache *cache,
         buf != 0; buf = Get_Next_In_FS_Buffer_List(buf)) {
 
         if(buf->fsBlockNum == fsBlockNum) {
-            Debug("Found cached block %lu\n", fsBlockNum);
+            if(fsBlockNum != 1) {
+                Debug("Found block %lu\n", fsBlockNum);
+            }
             /* If buffer is in use, wait until it is available. */
             while (buf->flags & FS_BUFFER_INUSE) {
                 Debug("Waiting for in-use cached block %lu, RA=%lx\n",
                       fsBlockNum, (ulong_t) __builtin_return_address(0));
                 Cond_Wait(&cache->cond, &cache->mutex);
             }
+            Move_To_Front(cache, buf);
             goto done;
         }
 
@@ -141,7 +146,7 @@ static int Get_Buffer(struct FS_Buffer_Cache *cache,
         if(buf != 0) {
             buf->data = Alloc_Page();   /* kinda lame, always allocate 4096 for data */
             if(buf->data == 0) {
-                Free(buf);
+                Free_Page(buf); /* never happens */
             } else {
                 /* Successful creation */
                 buf->fsBlockNum = fsBlockNum;
@@ -181,6 +186,8 @@ static int Get_Buffer(struct FS_Buffer_Cache *cache,
     KASSERT(!(buf->flags & FS_BUFFER_DIRTY));
     KASSERT(Get_Front_Of_FS_Buffer_List(&cache->bufferList) == buf);
 
+    Debug("READING %d block %lu\n", ++debugReadCounter, fsBlockNum);
+
     /* Read block data into buffer. */
     if((rc = Do_Buffer_IO(cache, buf, Block_Read)) != 0)
         return rc;
@@ -189,7 +196,6 @@ static int Get_Buffer(struct FS_Buffer_Cache *cache,
     /* Buffer is now in use. */
     buf->flags |= FS_BUFFER_INUSE;
     /* Success! */
-    Debug("Acquired block %lu\n", fsBlockNum);
     *pBuf = buf;
     return 0;
 }
@@ -314,8 +320,12 @@ int Get_FS_Buffer(struct FS_Buffer_Cache *cache, ulong_t fsBlockNum,
     KASSERT0(pBuf != NULL,
              "Null FS_Buffer pointer address passed to Get_FS_Buffer.");
 
-    Debug("Getting FS use cached block %lu, RA=%lx\n", fsBlockNum,
-          (ulong_t) __builtin_return_address(0));
+    /* no newline, expecting get_buffer debug statements to
+       complete with whether cached or read; don't print on
+       block 1 cache hits, which dominate. */
+    if(fsBlockNum != 1)
+        Debug("Getting block %lu, RA=%lx: ",
+              fsBlockNum, (ulong_t) __builtin_return_address(0));
 
     Mutex_Lock(&cache->mutex);
     rc = Get_Buffer(cache, fsBlockNum, pBuf);
@@ -373,7 +383,7 @@ int Release_FS_Buffer(struct FS_Buffer_Cache *cache,
         buf->flags &= ~(FS_BUFFER_INUSE);
         Cond_Broadcast(&cache->cond);
     }
-    Debug("Released block %lu\n", buf->fsBlockNum);
+    // Debug("Released block %lu\n", buf->fsBlockNum);
 
     Mutex_Unlock(&cache->mutex);
 

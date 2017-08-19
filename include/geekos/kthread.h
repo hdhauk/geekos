@@ -20,6 +20,7 @@
 
 #include <geekos/ktypes.h>
 #include <geekos/list.h>
+#include <geekos/smp.h>
 
 
 struct Kernel_Thread;
@@ -86,6 +87,7 @@ struct Kernel_Thread {
  */
 IMPLEMENT_LIST(Thread_Queue, Kernel_Thread);
 IMPLEMENT_LIST(All_Thread_List, Kernel_Thread);
+
 
 static __inline__ void Enqueue_Thread(struct Thread_Queue *queue,
                                       struct Kernel_Thread *kthread) {

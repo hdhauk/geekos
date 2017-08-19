@@ -35,6 +35,12 @@ extern Spin_Lock_t kthreadLock;
  */
 static struct Mutex s_blockdevLock;
 
+/* One mutex and condition variable for all requests */
+/* Prior wait and request queues were per-device type rather
+   than per-device; or were based on the globalLock. */
+static struct Mutex s_blockdevRequestLock;
+static struct Condition s_blockdevRequestCond;
+
 /*
  * List datatype for list of block devices.
  */
@@ -58,7 +64,7 @@ static int Do_Request(struct Block_Device *dev, enum Request_Type type,
     int rc;
 
     // Print("about to do_req\n");
-    Mutex_Lock(&s_blockdevLock);
+    Mutex_Lock(&s_blockdevLock);        /* not obviously the right mutex */
     request = Create_Request(dev, type, blockNum, buf);
     // Print("created req\n");
     if(request == 0) {
@@ -103,9 +109,10 @@ int Register_Block_Device(const char *name, struct Block_Device_Ops *ops,
     dev->unit = unit;
     dev->inUse = false;
     dev->driverData = driverData;
-    dev->waitQueue = waitQueue;
     dev->requestQueue = requestQueue;
     dev->reads = dev->writes = 0;
+    dev->waitQueue = waitQueue; /* can be shared */
+    dev->requestQueue = requestQueue;   /* can be shared */
 
     Mutex_Lock(&s_blockdevLock);
     /* FIXME: handle name conflict with existing device */
@@ -183,7 +190,8 @@ struct Block_Request *Create_Request(struct Block_Device *dev,
         request->blockNum = blockNum;
         request->buf = buf;
         request->state = PENDING;
-        Clear_Thread_Queue(&request->waitQueue);
+        //      Clear_Thread_Queue(&request->waitQueue);
+        Cond_Init(&request->satisfied);
     }
     return request;
 }
@@ -192,6 +200,7 @@ struct Block_Request *Create_Request(struct Block_Device *dev,
  * Send a block IO request to a device and wait for it to be handled.
  * Returns when the driver completes the requests or signals
  * an error.
+ *
  */
 void Post_Request_And_Wait(struct Block_Request *request) {
     struct Block_Device *dev;
@@ -203,20 +212,21 @@ void Post_Request_And_Wait(struct Block_Request *request) {
 
     /* Send request to the driver */
     Debug("Posting block device request [@%p]...\n", request);
-    /* avoid possible deadlock */
-    Deprecated_Disable_Interrupts();
+
+    Mutex_Lock(&s_blockdevRequestLock);
     Add_To_Back_Of_Block_Request_List(dev->requestQueue, request);
-    Wake_Up(dev->waitQueue);
-    Deprecated_Enable_Interrupts();
+    Cond_Broadcast(&s_blockdevRequestCond);     /* awakens Dequeue_Request below */
 
     /* Wait for request to be processed */
-    Deprecated_Disable_Interrupts();
     while (request->state == PENDING) {
         Debug("Waiting, state=%d\n", request->state);
-        Wait(&request->waitQueue);
+        // Disable_Interrupts();
+        // Wait(&request->waitQueue);
+        Cond_Wait(&request->satisfied, &s_blockdevRequestLock);
+        // Enable_Interrupts();
     }
+    Mutex_Unlock(&s_blockdevRequestLock);
     Debug("Wait completed!\n");
-    Deprecated_Enable_Interrupts();
 }
 
 /*
@@ -227,13 +237,16 @@ struct Block_Request *Dequeue_Request(struct Block_Request_List
                                       struct Thread_Queue *waitQueue) {
     struct Block_Request *request;
 
-    Deprecated_Disable_Interrupts();
+    Mutex_Lock(&s_blockdevRequestLock);
+
     while (!
            (request =
             Remove_From_Front_Of_Block_Request_List(requestQueue))) {
-        Wait(waitQueue);
+        /* could have something added here by Post_Request_And_Wait */
+        Cond_Wait(&s_blockdevRequestCond, &s_blockdevRequestLock);
     }
-    Deprecated_Enable_Interrupts();
+
+    Mutex_Unlock(&s_blockdevRequestLock);
 
     return request;
 }
@@ -243,15 +256,16 @@ struct Block_Request *Dequeue_Request(struct Block_Request_List
  */
 void Notify_Request_Completion(struct Block_Request *request,
                                enum Request_State state, int errorCode) {
-    Deprecated_Disable_Interrupts();
-    // Spin_Lock(&kthreadLock);
     request->state = state;
     request->errorCode = errorCode;
+    Cond_Signal(&request->satisfied);
     // Print("+++ in Notify_Request_Completion: core %d\n", Get_CPU_ID()); 
-    Wake_Up(&request->waitQueue);
+    // Disable_Interrupts();
+    // Wake_Up(&request->waitQueue);
     // Print("--- in Notify_Request_Completion: core %d\n", Get_CPU_ID()); 
-    // Spin_Unlock(&kthreadLock);
-    Deprecated_Enable_Interrupts();
+    // Enable_Interrupts();
+    /* Ensure that Wake_Up did its job; this should never fail. */
+    // KASSERT(Is_Thread_Queue_Empty(&request->waitQueue));
 }
 
 /*

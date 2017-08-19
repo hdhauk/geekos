@@ -41,6 +41,7 @@ typedef void (*signal_handler) (int);
 #ifdef GEEKOS
 
 struct Interrupt_State;
+struct Kernel_Thread;
 
 int Check_Pending_Signal(struct Kernel_Thread *kthread,
                          struct Interrupt_State *esp);

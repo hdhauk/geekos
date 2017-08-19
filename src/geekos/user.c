@@ -47,13 +47,12 @@ void Attach_User_Context(struct Kernel_Thread *kthread,
     KASSERT(context != 0);
     kthread->userContext = context;
 
-    KASSERT(context->refCount >= 0);
-
-    int iflag = Deprecated_Begin_Int_Atomic();  /* ns14; deadlock if kthreadlock held when preempted */
+    int iflag = Begin_Int_Atomic();     /* ns14; deadlock if kthreadlock held when preempted */
     Spin_Lock(&kthreadLock);
+    KASSERT(context->refCount >= 0);
     ++context->refCount;
     Spin_Unlock(&kthreadLock);
-    Deprecated_End_Int_Atomic(iflag);
+    End_Int_Atomic(iflag);
 }
 
 /*

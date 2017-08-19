@@ -87,28 +87,28 @@ void Set_IRQ_Mask(ushort_t mask) {
  * Enable given IRQ.
  */
 void Enable_IRQ(int irq) {
-    bool iflag = Deprecated_Begin_Int_Atomic();
+    bool iflag = Begin_Int_Atomic();
     ushort_t mask = Get_IRQ_Mask();
 
     KASSERT(irq >= 0 && irq <= 32);
     mask &= ~(1 << irq);
     Set_IRQ_Mask(mask);
 
-    Deprecated_End_Int_Atomic(iflag);
+    End_Int_Atomic(iflag);
 }
 
 /*
  * Disable given IRQ.
  */
 void Disable_IRQ(int irq) {
-    bool iflag = Deprecated_Begin_Int_Atomic();
+    bool iflag = Begin_Int_Atomic();
     ushort_t mask = Get_IRQ_Mask();
 
     KASSERT(irq >= 0 && irq < 16);
     mask |= (1 << irq);
     Set_IRQ_Mask(mask);
 
-    Deprecated_End_Int_Atomic(iflag);
+    End_Int_Atomic(iflag);
 }
 
 /*

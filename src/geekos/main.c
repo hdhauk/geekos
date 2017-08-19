@@ -90,6 +90,10 @@ void Init_GFS2() __attribute__ ((weak));
 void Init_GFS3() __attribute__ ((weak));
 
 void Hardware_Shutdown() {
+    /* Do not add to this function; it may be called with or
+       without interrupts enabled in response to an assertion
+       failure during submission testing.  Adding code that
+       may fail here can lead to test timeout. */
 
     // works with > 1.3 qemu with the command line: -device isa-debug-exit,iobase=0x501
     Out_Byte(0x501, 0x00);
@@ -144,6 +148,7 @@ void Main(struct Boot_Info *bootInfo) {
     Init_Alarm();
     Init_Serial();
 
+    /* Expect that the global lock is not held. */
     Print("the global lock is %sheld.\n",
           Kernel_Is_Locked()? "" : "not ");
 

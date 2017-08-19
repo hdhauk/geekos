@@ -43,6 +43,7 @@ struct Page *g_pageList;
  * Number of pages currently available on the freelist.
  */
 uint_t g_freePageCount = 0;
+bool debugFreeList = false;
 
 /* ----------------------------------------------------------------------
  * Private data and functions
@@ -233,11 +234,20 @@ void Init_BSS(void) {
     memset(&BSS_START, '\0', &BSS_END - &BSS_START);
 }
 
+/* 
+ * Allocates a page frame, if one is available.  Fails if 
+ * there are no free pages.
+ * 
+ * The struct Page associated with the physical page frame 
+ * will be marked with flag PAGE_ALLOCATED
+ * 
+ * Should be called with the allocator_mutex held.
+ *
+ */
+
 static void *Alloc_Page_Frame(void) {
     struct Page *page;
     void *result = 0;
-
-    /* ns14 rewritten partly to avoid race. */
 
     /* See if we have a free page */
     /* Remove the first page on the freelist. */
@@ -246,6 +256,7 @@ static void *Alloc_Page_Frame(void) {
         KASSERT((page->flags & PAGE_ALLOCATED) == 0);
         /* Mark page as having been allocated. */
         page->flags |= PAGE_ALLOCATED;
+        KASSERT(!(page->flags & PAGE_PAGEABLE));
         g_freePageCount--;
         result = (void *)Get_Page_Address(page);
     }
@@ -304,7 +315,11 @@ void Unlock_Page(struct Page *page) {
         page->context = (void *)0xbad10000;
 
         /* Put the page back on the freelist */
-        Unchecked_Add_To_Back_Of_Page_List(&s_freeList, page);
+        if(debugFreeList) {
+            Add_To_Back_Of_Page_List(&s_freeList, page);
+        } else {
+            Unchecked_Add_To_Back_Of_Page_List(&s_freeList, page);
+        }
         g_freePageCount++;
 
     }
@@ -329,18 +344,14 @@ static void *Alloc_Or_Reclaim_Page(pte_t * entry, ulong_t vaddr,
     bool mappedPage;
     void *paddr;
     struct Page *page;
-    int enabled = 0;
+
+    KASSERT(Interrupts_Enabled());
 
   start_over:
-
     /* Alloc_Page_Frame should be called before the atomics,
        since it acts over a locked list. */
     paddr = Alloc_Page_Frame();
 
-    Deprecated_Disable_Interrupts();
-
-    KASSERT(!Interrupts_Enabled());
-    KASSERT(Kernel_Is_Locked());
     KASSERT(Is_Page_Multiple(vaddr));
 
     if(paddr != 0) {
@@ -394,9 +405,6 @@ static void *Alloc_Or_Reclaim_Page(pte_t * entry, ulong_t vaddr,
     }
 
   done:
-    KASSERT(Kernel_Is_Locked());
-    if(!enabled)
-        Deprecated_Enable_Interrupts();
     return paddr;
 }
 
@@ -406,16 +414,8 @@ static void *Alloc_Or_Reclaim_Page(pte_t * entry, ulong_t vaddr,
  */
 void *Alloc_Page(void) {
     void *ret;
-    int enabled = 0;
 
-    if(!Interrupts_Enabled()) {
-        Deprecated_Enable_Interrupts();
-        enabled = 1;
-    }
     ret = Alloc_Or_Reclaim_Page(NULL, 0, true);
-
-    if(enabled)
-        Deprecated_Disable_Interrupts();
 
     /*  nice idea, maybe, but there are call sites that handle 
        Alloc_Page failure. and quitting is not cool; uncomment
@@ -442,16 +442,8 @@ void *Alloc_Page(void) {
  *   in user address space
  */
 void *Alloc_Pageable_Page(pte_t * entry, ulong_t vaddr) {
-    void *ret;
-    int enabled = 0;
+    void *ret = Alloc_Or_Reclaim_Page(entry, vaddr, false);
 
-    if(!Interrupts_Enabled()) {
-        enabled = 1;
-        Deprecated_Enable_Interrupts();
-    }
-    ret = Alloc_Or_Reclaim_Page(entry, vaddr, false);
-    if(enabled)
-        Deprecated_Disable_Interrupts();
     return ret;
 }
 
@@ -472,7 +464,7 @@ void Free_Page(void *pageAddr) {
     KASSERT0(page,
              "Couldn't find a struct Page * for the given pageAddr");
 
-    /* waste of time? */
+    /* useful to find use-after-free bugs */
     memset(pageAddr, '\0', 4096);
     // Print("freeing %p because of %lx\n", pageAddr, (ulong_t) __builtin_return_address(0));
 
@@ -491,12 +483,12 @@ void Free_Page(void *pageAddr) {
     if(page->flags & PAGE_LOCKED) {
         page->entry = 0;
         page->context = NULL;
-        return;
+    } else {
+        /* Clear the pageable bit */
+        page->flags &= ~(PAGE_PAGEABLE);
+
+        /* page is no longer locked or allocated.  free it. */
+        Unlock_Page(page);
     }
 
-    /* Clear the pageable bit */
-    page->flags &= ~(PAGE_PAGEABLE);
-
-    /* page is no longer locked or allocated.  free it. */
-    Unlock_Page(page);
 }

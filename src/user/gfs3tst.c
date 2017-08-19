@@ -121,8 +121,10 @@ int tCloseTwice() {
 
     //fd = Open("/d/basic4f", O_CREATE|O_WRITE);
     fd = Open("/d/somefile", O_READ);
-    if(fd < 0)
+    if(fd < 0) {
+        Print("expected /d/somefile to exist on a prepared image\n");
         return -1;
+    }
 
     if(Close(fd) < 0) {
         Print("failed to close");
@@ -556,21 +558,24 @@ int tSeekReread() {
 }
 
 int tCreat() {
-    int retC;
+    int retC, retD;
 
-    int fd = Open("/d/somefile", O_CREATE | O_READ);
+    int fd = Open("/d/created", O_CREATE | O_READ);
     if(fd < 0)
         return -1;
 
     retC = Close(fd);
 
-    (void)Delete("/d/somefile", false);
+    retD = Delete("/d/created", false);
+    if(retD < 0) {
+        Print("gfs3tst: Delete('/d/created') failed: %d", retD);
+    }
 
     return (retC >= 0) ? 1 : -1;
 }
 
 int tCreatLongFilename() {
-    int retC;
+    int retC, retD;
 
     int fd =
         Open("/d/somePrettyLongFileNameToBeCreated", O_CREATE | O_READ);
@@ -579,7 +584,12 @@ int tCreatLongFilename() {
 
     retC = Close(fd);
 
-    (void)Delete("/d/somePrettyLongFileNameToBeCreated", false);
+    retD = Delete("/d/somePrettyLongFileNameToBeCreated", false);
+    if(retD < 0) {
+        Print
+            ("gfs3tst: Delete('/d/somePrettyLongFileNameToBeCreated') failed: %d",
+             retD);
+    }
 
     return (retC >= 0) ? 1 : -1;
 }
@@ -1153,7 +1163,6 @@ int tExhaustDisk() {
                 return -1;
             }
         }
-
     }
 
     retD = Delete("/d/exhaust", false);
@@ -1172,6 +1181,10 @@ int tBufferCacher(void) {
     unsigned char writeme[512];
     unsigned char readme[512];
     int fd = Open("/d/buffa", O_CREATE | O_WRITE | O_READ);
+    if(fd < 0) {
+        Print("Failed to open /d/buffa for read/write: %d", fd);
+        return fd;
+    }
 
     for(u = 0; u < sizeof(writeme); u++) {
         writeme[u] = u % 256;
@@ -1250,10 +1263,12 @@ int tClean() {
     for(i = 0; (retR = Read_Entry(fd, &dirEntry)) == 0 &&
         (dirEntry.name[0] == '.' ||
          strcmp("somedir", dirEntry.name) == 0 ||
+         strcmp("somefile", dirEntry.name) == 0 ||
          strcmp("basic", dirEntry.name) == 0 ||
          strcmp("basic7f", dirEntry.name) == 0 ||
          strcmp("basic11d", dirEntry.name) == 0 ||
          strcmp("recursive_stat1", dirEntry.name) == 0); i++) ;
+
     //  if(dirEntry.name[0] != '.') {
     // Print("non-dot entry %s\n", dirEntry.name);
     // return -1; /* not empty */
@@ -1263,6 +1278,7 @@ int tClean() {
     //  return -1; /* many dotfiles */
     //}
     if(retR != VFS_NO_MORE_DIR_ENTRIES) {
+        Print("Unexpected remaining file: %s\n", dirEntry.name);
         return -1;              /* failed out */
     }
     return 1;
@@ -1578,6 +1594,7 @@ int main(int argc, char **argv) {
 
     if((unsigned int)task_index > sizeof(all_tests) / sizeof(struct test)) {
         Print("Task index out of range\n");
+        Exit(1);
     }
 
     if(Disk_Properties("/d/.", &blocksize, &blocks_on_disk) == 0) {

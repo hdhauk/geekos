@@ -20,6 +20,7 @@ static Spin_Lock_t run_queue_spinlock;
 static struct Thread_Queue s_runQueue;
 
 static struct Kernel_Thread *Get_Next_Runnable_Locked(void);
+static void Make_Runnable_Locked(struct Kernel_Thread *kthread);
 
 enum Scheduler { RR = 0,        /* default */
     MLFQ = 1,
@@ -34,6 +35,11 @@ static enum Scheduler s_scheduler = RR;
  * interrupted before passing control to another thread.
  * (Also invoked when switching schedulers.)
  */
+static void Make_Runnable_Locked(struct Kernel_Thread *kthread) {
+    Enqueue_Thread(&s_runQueue, kthread);
+    TODO_P(PROJECT_SCHEDULING, "replace make runnable as needed");
+}
+
 void Make_Runnable(struct Kernel_Thread *kthread) {
     KASSERT(!Interrupts_Enabled());
 
@@ -43,19 +49,20 @@ void Make_Runnable(struct Kernel_Thread *kthread) {
     if(kthread->priority == PRIORITY_IDLE)
         return;                 /* idle handled oob ns14 */
 
-    Enqueue_Thread(&s_runQueue, kthread);
-    TODO_P(PROJECT_SCHEDULING, "replace make runnable as needed");
+    Spin_Lock(&run_queue_spinlock);
+
+    Make_Runnable_Locked(kthread);
+
+    Spin_Unlock(&run_queue_spinlock);
 }
 
 /*
  * Atomically make a thread runnable.
  */
 void Make_Runnable_Atomic(struct Kernel_Thread *kthread) {
-    int iflag = Deprecated_Begin_Int_Atomic();
-    Spin_Lock(&run_queue_spinlock);
+    int iflag = Begin_Int_Atomic();
     Make_Runnable(kthread);
-    Spin_Unlock(&run_queue_spinlock);
-    Deprecated_End_Int_Atomic(iflag);
+    End_Int_Atomic(iflag);
 }
 
 
@@ -114,16 +121,22 @@ struct Kernel_Thread *Get_Next_Runnable(void) {
 
     /* ns14 */
     //Deprecated_Enable_Interrupts();
+    KASSERT(!Interrupts_Enabled());
+
+#if 0
     if(!Try_Spin_Lock(&run_queue_spinlock)) {
         /* attempt at dealing with the potential problem of waiting for the
            kthread lock while holding the global lock... prefer to schedule
            the idle thread instead of deadlocking. */
         int cpuID = Get_CPU_ID();
         Print
-            ("GNR returning Idle thread on cpu %d to %p due to kthreadlock\n",
+            ("GNR returning Idle thread on cpu %d to %p due to run_queue_spinlock\n",
              cpuID, __builtin_return_address(0));
         return CPUs[cpuID].idleThread;
     }
+#else
+    Spin_Lock(&run_queue_spinlock);
+#endif
 
     /* Spin_Lock(&run_queue_spinlock); */
     /* ns14 - hacking at getting this right, since we will need the kthreadlock

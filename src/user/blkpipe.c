@@ -52,7 +52,12 @@ void test_bigwrite(void) {
         /* parent */
         Close(write_fd);
         while ((read_bytes = Read(read_fd, littlebuf, sizeof(littlebuf)))) {
-            assert(read_bytes == sizeof(littlebuf));
+            if(read_bytes != sizeof(littlebuf)) {
+                /* type of size_t varies; cast to unsigned long to print */
+                Print("expected to read %lu bytes, got %d\n",
+                      (unsigned long)sizeof(littlebuf), read_bytes);
+                assert(read_bytes == sizeof(littlebuf));
+            }
             for(i = 0; i < sizeof(littlebuf); i++) {
                 assert(littlebuf[i] == i % 256);
             }

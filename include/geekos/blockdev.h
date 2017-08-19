@@ -22,6 +22,7 @@
 #include <geekos/kthread.h>
 #include <geekos/list.h>
 #include <geekos/fileio.h>
+#include <geekos/synch.h>
 
 #ifdef GEEKOS
 
@@ -56,7 +57,7 @@ struct Block_Request {
     void *buf;
     volatile enum Request_State state;
     volatile int errorCode;
-    struct Thread_Queue waitQueue;
+    struct Condition satisfied;
 
      DEFINE_LINK(Block_Request_List, Block_Request);
 };

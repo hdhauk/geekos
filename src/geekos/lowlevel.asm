@@ -257,7 +257,7 @@ align 8
 Enable_Paging:
 	mov	eax, [esp+4]
 	mov	cr3, eax
-	mov	eax, cr3
+	mov	eax, cr3                
 	mov	cr3, eax
 	mov	ecx, cr0
 	or	ecx, 0x80000000
@@ -345,10 +345,10 @@ Handle_Interrupt:
 	mov	ds, ax
 	mov	es, ax
 
-	; get the kernel lock if interrupts were on before int
- 	test	word [esp+EFLAGS_SKIP], EFLAGS_IF
-	jz	.skipLock
-	call	lockKernel
+;	; get the kernel lock if interrupts were on before int
+; 	test	word [esp+EFLAGS_SKIP], EFLAGS_IF 
+;	jz	.skipLock
+;	call	lockKernel
 .skipLock:
 
 	; Get the address of the C handler function from the
@@ -378,6 +378,7 @@ Handle_Interrupt:
         ;;  nspring - check if kthreadLock is; if so, skip preemption.
         ;;  this is a hack.  it can help, but is not reliable (we are
         ;;  not acquiring the lock, but another thread might.
+;;; TODO: move this into eax to leave ebx untouched to simplify the needReschedule comparison.
 	mov	ebx, [kthreadLock]		;; the lock value at the front of the spinlock.
 	jne	.tramp_restore
 
@@ -431,10 +432,10 @@ Handle_Interrupt:
 	; clear APIC Interrupt info
 	mov	[APIC_BASE+APIC_EOI], dword 0
 
-	; releasee the kernel lock if interrupts will be re-enabled
- 	test	word [esp+EFLAGS_SKIP], EFLAGS_IF
-	jz	.skipUnlock
-	call	unlockKernel
+;	; releasee the kernel lock if interrupts will be re-enabled
+; 	test	word [esp+EFLAGS_SKIP], EFLAGS_IF
+;	jz	.skipUnlock
+;	call	unlockKernel
 .skipUnlock:
         mov eax, esp            ; debug ns
 
@@ -494,10 +495,10 @@ Switch_To_Thread:
 	Save_Registers
 
 	; get the kernel lock if interrupts were on before int
- 	test	word [esp+EFLAGS_SKIP], EFLAGS_IF
-	jz	.skipLock
-	call	lockKernel
-.skipLock:
+; 	test	word [esp+EFLAGS_SKIP], EFLAGS_IF
+;	jz	.skipLock
+;	call	lockKernel
+;	.skipLock:
 
 	; Save stack pointer in the thread context struct (at offset 0).
     Get_Current_Thread_To_EAX
@@ -527,10 +528,10 @@ Switch_To_Thread:
 .complete:	
 
 	; release the kernel lock, if enabling interrupts on iret
- 	test	word [esp+EFLAGS_SKIP], EFLAGS_IF
-	jz	.skipUnlock
-	call	unlockKernel
-.skipUnlock:
+; 	test	word [esp+EFLAGS_SKIP], EFLAGS_IF
+;	jz	.skipUnlock
+;	call	unlockKernel
+;	.skipUnlock:
         mov eax, esp            ; debug ns; get esp into a register that is dumped if there's a trap.
 
 	; Restore general purpose and segment registers, and clear interrupt
@@ -563,7 +564,7 @@ Spin_Lock_INTERNAL:
         
 .seems_unlocked:
      mov     eax, 1          
-     lock xchg    eax, [ecx]   
+     xchg    eax, [ecx]         ; "lock" implicit for xchg.
      test    eax, eax        
      jnz     Spin_Lock_INTERNAL       
      inc     dword [lockops]

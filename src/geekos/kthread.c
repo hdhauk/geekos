@@ -160,7 +160,9 @@ static struct Kernel_Thread *Create_Thread(int priority, bool detached) {
     Init_Thread(kthread, stackPage, priority, detached);
 
     /* Add to the list of all threads in the system. */
+    int iflag = Begin_Int_Atomic();
     Add_To_Back_Of_All_Thread_List(&s_allThreadList, kthread);
+    End_Int_Atomic(iflag);
 
     return kthread;
 }
@@ -190,7 +192,9 @@ static void Destroy_Thread(struct Kernel_Thread *kthread) {
         Detach_User_Context(kthread);
 
     /* Remove from list of all threads */
+    int iflag = Begin_Int_Atomic();
     Remove_From_All_Thread_List(&s_allThreadList, kthread);
+    End_Int_Atomic(iflag);
 
     /* Dispose of the thread's memory. */
     Free_Page(kthread->stackPage);
@@ -210,18 +214,29 @@ static void Reap_Thread(struct Kernel_Thread *kthread) {
     KASSERT(kthread != CPUs[0].idleThread);
     KASSERT(kthread != CPUs[1].idleThread);
 
-    /* Interrupts must be disabled for the Wake_Up,
-       but also best to have interrupts disabled 
-       completely while we exit and deposit ourselves
-       on the graveyard queue so that we're not 
-       put on the run queue */
-    KASSERT(!Interrupts_Enabled());
-
-    Mutex_Lock_Interrupts_Disabled(&s_graveyardMutex);
-    Enqueue_Thread(&s_graveyardQueue, kthread);
-    Mutex_Unlock_Interrupts_Disabled(&s_graveyardMutex);
-
-    Wake_Up(&s_reaperWaitQueue);
+    if(kthread == CURRENT_THREAD) {
+        /* if we are putting ourselves on the graveyard queue,
+           we should do nothing more, and additionally prevent
+           the reaper from starting until we're really on that
+           queue */
+        Mutex_Lock(&s_graveyardMutex);
+        /* cannot allow interruption that would put us on the 
+           runnable queue */
+        Disable_Interrupts();
+        Add_To_Back_Of_Thread_Queue(&s_graveyardQueue, kthread);
+        Wake_Up(&s_reaperWaitQueue);
+        // Enable_Interrupts();
+        Mutex_Unlock_And_Schedule(&s_graveyardMutex);
+    } else {
+        /* if it's another thread (a parent) finishing the detach
+           then we can use a simpler scheme */
+        Mutex_Lock(&s_graveyardMutex);
+        Add_To_Back_Of_Thread_Queue(&s_graveyardQueue, kthread);
+        Disable_Interrupts();
+        Wake_Up(&s_reaperWaitQueue);
+        Enable_Interrupts();
+        Mutex_Unlock(&s_graveyardMutex);
+    }
 }
 
 /*
@@ -233,21 +248,24 @@ void Detach_Thread(struct Kernel_Thread *kthread) {
 
     KASSERT(kthread);
     KASSERT(kthread->esp);      /* sanity */
+
+    /* called with interrupts enabled */
+
+    /* in order to work on the refCount, must hold at
+       least some lock.  might as well be kthreadLock. */
+    iflag = Begin_Int_Atomic();
+    Spin_Lock(&kthreadLock);
     KASSERT(kthread->refCount > 0);
-
-    /* called with interrupts enabled if the parent is
-       detaching; called with interrupts disabled (so we
-       don't get rescheduled) if the kthread itself is
-       exiting; ensure interrupts are off for the queue
-       manipulations. */
-
-    iflag = Deprecated_Begin_Int_Atomic();
     count = --kthread->refCount;
-
     if(count == 0) {
+        Spin_Unlock(&kthreadLock);
+        End_Int_Atomic(iflag);
+        /* Reap_Thread may schedule if kthread == current */
         Reap_Thread(kthread);
+    } else {
+        Spin_Unlock(&kthreadLock);
+        End_Int_Atomic(iflag);
     }
-    Deprecated_End_Int_Atomic(iflag);
 }
 
 /*
@@ -257,7 +275,10 @@ void Detach_Thread(struct Kernel_Thread *kthread) {
  * a thread with interrupts disabled).
  */
 static void Launch_Thread(void) {
-    Deprecated_Enable_Interrupts();
+    if(Kernel_Is_Locked())
+        unlockKernel();
+    if(!Interrupts_Enabled())
+        Enable_Interrupts();
 }
 
 /*
@@ -438,8 +459,6 @@ static void Idle(ulong_t arg __attribute__ ((unused))) {
 static void Reaper(ulong_t arg __attribute__ ((unused))) {
     struct Kernel_Thread *kthread;
 
-    //     Deprecated_Disable_Interrupts();
-
     while (true) {
         /* Interact directly with the queue lock, since we will take the entire list at once. */
         Mutex_Lock(&s_graveyardMutex);
@@ -449,11 +468,13 @@ static void Reaper(ulong_t arg __attribute__ ((unused))) {
             /* Graveyard is empty, so wait for a thread to die. */
             Spin_Unlock(&s_graveyardQueue.lock);
             Mutex_Unlock(&s_graveyardMutex);
-            Deprecated_Disable_Interrupts();
+            Disable_Interrupts();
             KASSERT0(Is_Thread_Queue_Empty(&s_reaperWaitQueue),
-                     "The reaper is the only thread that may be on the wait queue, once.  The reaper wait queue is, however, not empty when the reaper is ready to sleep.");
+                     "The reaper is the only thread that may be on the wait queue, once."
+                     "The reaper wait queue is, however, not empty when "
+                     "the reaper is ready to sleep.");
             Wait(&s_reaperWaitQueue);
-            Deprecated_Enable_Interrupts();
+            Enable_Interrupts();
 
         } else {
             /* Make the graveyard queue empty. */
@@ -467,21 +488,10 @@ static void Reaper(ulong_t arg __attribute__ ((unused))) {
             while (kthread != 0) {
                 struct Kernel_Thread *next =
                     Get_Next_In_Thread_Queue(kthread);
-                // Print("Reaper on CPU%d: disposing of thread %s (pid %d) @ %x, stack @ %x\n",
-                // Get_CPU_ID(), kthread->threadName, kthread->pid, kthread, kthread->stackPage);
-                // Spin_Lock(&kthreadLock); /* Destroy_Thread alters the all thread list. */
-                Destroy_Thread(kthread);        /* so needs the kthreadlock. */
-                // Spin_Unlock(&kthreadLock); /* but grabbing it causes trouble. */
+                Destroy_Thread(kthread);
                 KASSERT(kthread != next);
                 kthread = next;
             }
-
-            /* maybe needed if we spend all our time with interrupts
-               disabled, but if we are sane, we should spend our
-               time in Wait(). */
-            //ns14 Deprecated_Enable_Interrupts();
-            //ns14 Yield();
-            //ns14 Deprecated_Disable_Interrupts();
 
         }
     }
@@ -566,7 +576,8 @@ void Init_Scheduler(unsigned int cpuID, void *stack) {
     CPUs[cpuID].idleThread->owner = NULL;
     CPUs[cpuID].idleThread->affinity = cpuID;
 
-    TODO_P(PROJECT_PERCPU, "set the idle thread now that we have one");
+    TODO_P(PROJECT_PERCPU_SCHED,
+           "set the idle thread now that we have one");
 
     if(!cpuID) {
         /*
@@ -651,15 +662,19 @@ void Schedule(void) {
 
     /* Make sure interrupts really are disabled */
     KASSERT(!Interrupts_Enabled());
-    KASSERT0(Kernel_Is_Locked(),
-             "kernel should be locked, since interrupts are disabled.\n");
+    /* If we locked the kernel and are in schedule, the kernel will stay locked, 
+       which would lead to deadlock. */
+    KASSERT0(!I_Locked_The_Kernel(),
+             "kernel should not be locked (anymore).\n");
 
     /* Preemption should not be disabled. */
+    /* must have interrupts disabled for this statement to work properly. */
     // ns15 KASSERT(!g_preemptionDisabled[Get_CPU_ID()]);
     g_preemptionDisabled[Get_CPU_ID()] = false;
 
     /* Get next thread to run from the run queue */
     runnable = Get_Next_Runnable();
+
 
     // Print("switching to %d, %s (core %d)\n", runnable->pid, runnable->userContext? runnable->userContext->name : runnable->threadName, Get_CPU_ID());
 
@@ -669,6 +684,22 @@ void Schedule(void) {
      * will "return", and then Schedule() will return to wherever
      * it was called from.
      */
+
+    Switch_To_Thread(runnable);
+}
+
+void Schedule_And_Unlock(Spin_Lock_t * unlock_me) {
+    struct Kernel_Thread *runnable;
+
+    /* Preemption should not be disabled. */
+    /* must have interrupts disabled for this statement to work properly. */
+    g_preemptionDisabled[Get_CPU_ID()] = false;
+
+    /* Get next thread to run from the run queue */
+    runnable = Get_Next_Runnable();
+
+    Spin_Unlock(unlock_me);
+
     Switch_To_Thread(runnable);
 }
 
@@ -677,8 +708,10 @@ void Schedule(void) {
  * Does nothing if no other threads are ready to run.
  */
 void Yield(void) {
+    /* DO NOT USE; NOT UPDATED FOR 2017: needs locking */
+    KASSERT(false);
     Deprecated_Disable_Interrupts();
-    Make_Runnable_Atomic(get_current_thread(0));
+    Make_Runnable(get_current_thread(0));
     Schedule();
     Deprecated_Enable_Interrupts();
 }
@@ -705,18 +738,18 @@ void Exit(int exitCode) {
 
 
     /* Remove timer references this thread has held */
-    iflag = Deprecated_Begin_Int_Atomic();      /* seems less than necessary, but appeases. */
+    iflag = Begin_Int_Atomic(); /* seems less than necessary, but appeases. */
     Alarm_Cancel_For_Thread(current);
 
     /* Clean up any thread-local memory */
     Tlocal_Exit(CURRENT_THREAD);
 
 /* Notify the thread's owner, if any */ Wake_Up(&current->joinQueue);
-    Deprecated_End_Int_Atomic(iflag);
+    End_Int_Atomic(iflag);
 
 
     /* Remove the thread's implicit reference to itself. */
-    iflag = Deprecated_Begin_Int_Atomic();      /* fundamentally necessary to detach and schedule uninterrupted! */
+    /* NOTE: may additionally schedule, if we are the last reference to ourselves */
     Detach_Thread(CURRENT_THREAD);
 
     /*
@@ -724,8 +757,8 @@ void Exit(int exitCode) {
      * Since the old thread wasn't placed on any
      * thread queue, it won't get scheduled again.
      */
+    Disable_Interrupts();
     Schedule();
-    Deprecated_End_Int_Atomic(iflag);
 
     /* Shouldn't get here */
     KASSERT(false);
@@ -741,7 +774,7 @@ int Join(struct Kernel_Thread *kthread) {
 
     KASSERT(Interrupts_Enabled());
 
-    Deprecated_Disable_Interrupts();
+    Disable_Interrupts();
 
     /* It is only legal for the owner to join */
     KASSERT(kthread->owner == CURRENT_THREAD);
@@ -759,7 +792,7 @@ int Join(struct Kernel_Thread *kthread) {
     kthread->detached = 1;
 
 
-    Deprecated_Enable_Interrupts();
+    Enable_Interrupts();
 
     /* Release our (the parent's) reference to the thread */
     Detach_Thread(kthread);
@@ -787,7 +820,7 @@ struct Kernel_Thread *Lookup_Thread(int pid,
     struct Kernel_Thread *result = 0;
 
 
-    bool iflag = Deprecated_Begin_Int_Atomic();
+    bool iflag = Begin_Int_Atomic();
 
     struct Kernel_Thread *current = get_current_thread(0);      /* interrupts disabled, may use fast */
 
@@ -810,7 +843,7 @@ struct Kernel_Thread *Lookup_Thread(int pid,
     }
     Spin_Unlock(&kthreadLock);
 
-    Deprecated_End_Int_Atomic(iflag);
+    End_Int_Atomic(iflag);
 
 
     return result;
@@ -830,20 +863,21 @@ struct Kernel_Thread *Lookup_Thread(int pid,
 void Wait(struct Thread_Queue *waitQueue) {
     struct Kernel_Thread *current = get_current_thread(0);      /* interrupts disabled, may use fast */
 
-    KASSERT(!Interrupts_Enabled());
-    KASSERT0(Kernel_Is_Locked(),
-             "kernel should be locked, since interrupts are disabled.\n");
     KASSERT(waitQueue != NULL); /* try to protect against passing uninitialized pointers in */
 
+    bool iflag = Begin_Int_Atomic();
+
     /* Add the thread to the wait queue. */
-    Enqueue_Thread(waitQueue, current);
+    Lock_Thread_Queue(waitQueue);
+    Locked_Unchecked_Add_To_Back_Of_Thread_Queue(waitQueue, current);
 
     /* Find another thread to run. */
-    Schedule();
+    Schedule_And_Unlock(&waitQueue->lock);
+    End_Int_Atomic(iflag);
 }
 
 void Wake_Up_Locked(struct Thread_Queue *waitQueue) {
-    struct Kernel_Thread *kthread = waitQueue->head, *next;
+    struct Kernel_Thread *kthread;
 
     KASSERT(Is_Locked(&kthreadLock));
     KASSERT(waitQueue != NULL);
@@ -858,6 +892,7 @@ void Wake_Up_Locked(struct Thread_Queue *waitQueue) {
     }
 
     /* The wait queue is now empty. */
+    KASSERT(Is_Thread_Queue_Empty(waitQueue));
 }
 
 
@@ -870,28 +905,10 @@ void Wake_Up_Locked(struct Thread_Queue *waitQueue) {
 void Wake_Up(struct Thread_Queue *waitQueue) {
     KASSERT(!Interrupts_Enabled());
     KASSERT(waitQueue != NULL);
-#ifdef SKETCHY_DEADLOCK_AVOIDANCE
-    do {
-        if(Try_Spin_Lock(&kthreadLock)) {
-            Wake_Up_Locked(waitQueue);
-            Spin_Unlock(&kthreadLock);
-            return;
-        } else {
-            Print
-                ("failed to acquire kthreadlock while interrupts are disabled; "
-                 "yielding to avoid deadlock.\n");
-            /* probably yields to the idle thread, since kthreadlock is held. */
-            /* make runnable should not be run, since it expects the 
-               kthreadlock to be held. */
-            Make_Runnable(get_current_thread(0));
-            Schedule();
-        }
-    } while (1);
-#else
+
     Spin_Lock(&kthreadLock);
     Wake_Up_Locked(waitQueue);
     Spin_Unlock(&kthreadLock);
-#endif
 }
 
 
@@ -903,27 +920,12 @@ void Wake_Up(struct Thread_Queue *waitQueue) {
 void Wake_Up_One(struct Thread_Queue *waitQueue) {
     struct Kernel_Thread *first;
 
-    KASSERT(!Interrupts_Enabled());
-    KASSERT(Kernel_Is_Locked());
     KASSERT(waitQueue != NULL);
 
     first = Remove_From_Front_Of_Thread_Queue(waitQueue);
 
     if(first != 0) {
-        do {
-            if(Try_Spin_Lock(&kthreadLock)) {
-                Make_Runnable(first);
-                /*Print("Wake_Up_One: waking up %x from %x\n", best, CURRENT_THREAD); */
-                Spin_Unlock(&kthreadLock);
-                return;
-            } else {
-                Print
-                    ("failed to acquire kthreadlock while interrupts are disabled; "
-                     "yielding to avoid deadlock in wake_up_one.\n");
-                Make_Runnable(get_current_thread(0));
-                Schedule();
-            }
-        } while (1);
+        Make_Runnable_Atomic(first);
     }
 }
 

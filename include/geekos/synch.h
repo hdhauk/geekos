@@ -19,6 +19,7 @@
 
 #include <geekos/kthread.h>
 #include <geekos/smp.h>
+#include <geekos/lock.h>
 
 /*
  * mutex states
@@ -27,11 +28,12 @@ enum { MUTEX_UNLOCKED, MUTEX_LOCKED };
 
 struct Mutex {
     int state;
+    Spin_Lock_t guard;
     struct Kernel_Thread *owner;
     struct Thread_Queue waitQueue;
 };
 
-#define MUTEX_INITIALIZER { MUTEX_UNLOCKED, 0, THREAD_QUEUE_INITIALIZER }
+#define MUTEX_INITIALIZER { MUTEX_UNLOCKED, SPIN_LOCK_INITIALIZER, 0, THREAD_QUEUE_INITIALIZER }
 
 struct Condition {
     struct Thread_Queue waitQueue;
@@ -42,6 +44,7 @@ struct Condition {
 void Mutex_Init(struct Mutex *mutex);
 void Mutex_Lock(struct Mutex *mutex);
 void Mutex_Unlock(struct Mutex *mutex);
+void Mutex_Unlock_And_Schedule(struct Mutex *mutex);
 void Mutex_Lock_Interrupts_Disabled(struct Mutex *mutex);
 void Mutex_Unlock_Interrupts_Disabled(struct Mutex *mutex);
 

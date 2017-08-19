@@ -18,6 +18,13 @@
 #include <fileio.h>
 #include <geekos/errno.h>       /* ensure not /usr/include/errno.h */
 
+/* Single-thread pipe test, writes 10K, 1K at a time; then
+ *  reads out the bytes, confirming that they're correct.
+ *  Reads more, ensures EWOULDBLOCK.  Closes the write end,
+ *  ensures that the read end sees EOF.  
+ *
+ *  THIS TEST SHOULD STALL WITH BLOCKING PIPE */
+
 int main(int argc, char **argv) {
     int i, j;
     int read_fd, write_fd;

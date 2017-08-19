@@ -43,6 +43,7 @@
 #define PROJECT_CFS false
 
 #define PROJECT_PERCPU false
+#define PROJECT_PERCPU_SCHED false
 
 #define PROJECT_USER false
 

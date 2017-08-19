@@ -82,6 +82,10 @@ void *Alloc_Page(void);
 void *Alloc_Pageable_Page(pte_t * entry, ulong_t vaddr);
 void Free_Page(void *pageAddr);
 
+/* debugging support */
+void Print_Struct_Page(const struct Page *p);
+void Print_Page(const void *p);
+
 /*
  * Determine if given address is a multiple of the page size.
  */

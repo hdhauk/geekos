@@ -73,6 +73,12 @@ static __inline__ bool Is_Member_Of_##LType(struct LType *listPtr, const struct 
     Unlock_List(&listPtr->lock);										\
     return ret;										\
 }												\
+static __inline__ void Lock_##LType(struct LType *listPtr) {			\
+  Lock_List(&listPtr->lock);                                            \
+}												\
+static __inline__ void Unlock_##LType(struct LType *listPtr) {			\
+  Unlock_List(&listPtr->lock);                                            \
+}												\
 static __inline__ struct NType * Get_Front_Of_##LType(struct LType *listPtr) {			\
     return listPtr->head;									\
 }												\
@@ -149,22 +155,21 @@ static __inline__ void Append_##LType(struct LType *listToModify, struct LType *
     Unlock_List(&listToModify->lock);										\
 }												\
 static __inline__ struct NType * Remove_From_Front_Of_##LType(struct LType *listPtr) {		\
-    Lock_List(&listPtr->lock);										\
-    struct NType *nodePtr;									\
-    nodePtr = listPtr->head;									\
-    if(nodePtr != 0) {                                                  \
-      listPtr->head = listPtr->head->next##LType;                       \
-      if (listPtr->head == 0)                                           \
-        listPtr->tail = 0;                                              \
-      else                                                            \
-        listPtr->head->prev##LType = 0;                                 \
-      nodePtr->in##LType = (void *)0;                                  \
-      }  \
-    Unlock_List(&listPtr->lock);										\
+    struct NType *nodePtr;								\
+    Lock_List(&listPtr->lock);							\
+    nodePtr = listPtr->head;							\
+    if(nodePtr != 0) {                                  \
+      listPtr->head = listPtr->head->next##LType;       \
+      if (listPtr->head == 0)                           \
+        listPtr->tail = 0;                              \
+      else                                              \
+        listPtr->head->prev##LType = 0;                 \
+      nodePtr->in##LType = (void *)0;                   \
+      }                                                 \
+    Unlock_List(&listPtr->lock);						\
     return nodePtr;										\
-}												\
-static __inline__ void Remove_From_##LType(struct LType *listPtr, struct NType *nodePtr) {	\
-    Lock_List(&listPtr->lock);										\
+}										           		\
+static __inline__ void Locked_Remove_From_##LType(struct LType *listPtr, struct NType *nodePtr) {	\
     KASSERT0(Locked_Is_Member_Of_##LType(listPtr, nodePtr), "Attempting to remove entry from list, but not present.");       \
     if (nodePtr->prev##LType != 0)								\
 	nodePtr->prev##LType->next##LType = nodePtr->next##LType;				\
@@ -175,6 +180,10 @@ static __inline__ void Remove_From_##LType(struct LType *listPtr, struct NType *
     else											\
 	listPtr->tail = nodePtr->prev##LType;							\
     nodePtr->in##LType = (void *)0;                                  \
+}												\
+static __inline__ void Remove_From_##LType(struct LType *listPtr, struct NType *nodePtr) {	\
+    Lock_List(&listPtr->lock);										\
+    Locked_Remove_From_##LType(listPtr, nodePtr);        \
     Unlock_List(&listPtr->lock);										\
 }												\
 static __inline__ bool Is_##LType##_Empty(struct LType *listPtr) {				\

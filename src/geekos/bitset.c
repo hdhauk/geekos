@@ -95,6 +95,7 @@ int Find_First_N_Free(void *bitSet, uint_t runLength, ulong_t totalBits) {
         if(!Is_Bit_Set(bitSet, i)) {
             for(j = 1; j < runLength; j++) {
                 if(Is_Bit_Set(bitSet, i + j)) {
+                    i += j;     /* Mr. Hunt's contribution */
                     break;
                 }
             }

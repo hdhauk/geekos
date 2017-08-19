@@ -58,6 +58,14 @@ static struct Console_State s_cons;
 #define NUM_DWORDS_PER_LINE ((NUMCOLS*2)/4)
 #define FILL_DWORD (0x00200020 | (s_cons.currentAttr<<24) | (s_cons.currentAttr<<8))
 
+/* This module called Begin_Int_Atomic lots for locking.
+   Removed 16au.  Left placeholders in case necessary. */
+static bool Lock_Screen(void) {
+    return false;
+}
+static void Unlock_Screen(bool iflag) {
+}
+
 /*
  * Scroll the display one line.
  * We speed things up by copying 4 bytes at a time.
@@ -411,22 +419,22 @@ void Clear_Screen(void) {
     int i;
     uint_t fill = FILL_DWORD;
 
-    bool iflag = Deprecated_Begin_Int_Atomic();
+    bool iflag = Lock_Screen();
 
     for(i = 0; i < NUM_SCREEN_DWORDS; ++i)
         *v++ = fill;
 
-    Deprecated_End_Int_Atomic(iflag);
+    Unlock_Screen(iflag);
 }
 
 /*
  * Get current cursor position.
  */
 void Get_Cursor(int *row, int *col) {
-    bool iflag = Deprecated_Begin_Int_Atomic();
+    bool iflag = Lock_Screen();
     *row = s_cons.row;
     *col = s_cons.col;
-    Deprecated_End_Int_Atomic(iflag);
+    Unlock_Screen(iflag);
 }
 
 /*
@@ -440,11 +448,11 @@ bool Put_Cursor(int row, int col) {
     if(row < 0 || row >= NUMROWS || col < 0 || col >= NUMCOLS)
         return false;
 
-    iflag = Deprecated_Begin_Int_Atomic();
+    iflag = Lock_Screen();
     s_cons.row = row;
     s_cons.col = col;
     Update_Cursor();
-    Deprecated_End_Int_Atomic(iflag);
+    Unlock_Screen(iflag);
 
     return true;
 }
@@ -460,9 +468,9 @@ uchar_t Get_Current_Attr(void) {
  * Set the current character attribute.
  */
 void Set_Current_Attr(uchar_t attrib) {
-    bool iflag = Deprecated_Begin_Int_Atomic();
+    bool iflag = Lock_Screen();
     s_cons.currentAttr = attrib;
-    Deprecated_End_Int_Atomic(iflag);
+    Unlock_Screen(iflag);
 }
 
 /*
@@ -470,10 +478,10 @@ void Set_Current_Attr(uchar_t attrib) {
  * using current attribute, handling scrolling, special characters, etc.
  */
 void Put_Char(int c) {
-    bool iflag = Deprecated_Begin_Int_Atomic();
+    bool iflag = Lock_Screen();
     Put_Char_Imp(c);
     Update_Cursor();
-    Deprecated_End_Int_Atomic(iflag);
+    Unlock_Screen(iflag);
 }
 
 /*
@@ -481,11 +489,11 @@ void Put_Char(int c) {
  * position using current attribute.
  */
 void Put_String(const char *s) {
-    bool iflag = Deprecated_Begin_Int_Atomic();
+    bool iflag = Lock_Screen();
     while (*s != '\0')
         Put_Char_Imp(*s++);
     Update_Cursor();
-    Deprecated_End_Int_Atomic(iflag);
+    Unlock_Screen(iflag);
 }
 
 /*
@@ -493,13 +501,13 @@ void Put_String(const char *s) {
  * using current attribute.
  */
 void Put_Buf(const char *buf, ulong_t length) {
-    bool iflag = Deprecated_Begin_Int_Atomic();
+    bool iflag = Lock_Screen();
     while (length > 0) {
         Put_Char_Imp(*buf++);
         --length;
     }
     Update_Cursor();
-    Deprecated_End_Int_Atomic(iflag);
+    Unlock_Screen(iflag);
 }
 
 /* Support for Print(). */

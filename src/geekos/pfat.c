@@ -452,7 +452,7 @@ static directoryEntry *PFAT_Lookup(struct Mount_Point *mountPoint,
         int found = 0;
         for(i = 0; i < dirSize; ++i) {
             directoryEntry *entry = &currDir[i];
-            if(strcmp(entry->fileName, path) == 0) {
+            if(strncmp(entry->fileName, path, 12) == 0) {
                 /* Found it! */
                 found = 1;
                 if(!rest) {

@@ -12,13 +12,16 @@ nsamples.times do
   ary = []
   IO.popen("#{i386_elf}gdb geekos/kernel.exe -ex 'set pagination 0' -ex 'thread apply all bt' -batch", "r") { |stacks|
     stacks.readlines.each { |ln|
-      if ln =~ /#(?<id>\d+)\s+(0x[\d\w]+ in )?(?<func>\w\S+)\s/ then
+      if /#(?<id>\d+)\s+(0x[\d\w]+ in )?(?<func>\w\S+)\s/ =~ ln then
         # puts "line: %s" % ln
         # puts "one: %s" % Regexp.last_match(1)
         # puts "thr: %s" % Regexp.last_match(3)
         ary[Regexp.last_match(:id).to_i] = Regexp.last_match(:func)
       elsif ln =~ /^Thread / then
-        samples[ary.join(',')] += 1 unless ary.empty?
+        unless ary.empty?
+          ary.pop if ary[-1] =~ /^0x/ # discard where gdb loses the stack.
+          samples[ary.join(',')] += 1
+        end
         tops[ary[0]] += 1 unless ary.empty?
         # puts ary.join('-')
         ary = []

@@ -55,9 +55,7 @@ static struct Segment_Descriptor *Allocate_Segment_Descriptor_From(struct
 {
     struct Segment_Descriptor *result = 0;
     int i;
-    bool iflag;
-
-    iflag = Deprecated_Begin_Int_Atomic();
+    bool iflag = Begin_Int_Atomic();
 
     /* Note; entry 0 is unused (thus never allocated) */
     for(i = 1; i < NUM_GDT_ENTRIES; ++i) {
@@ -70,7 +68,7 @@ static struct Segment_Descriptor *Allocate_Segment_Descriptor_From(struct
         }
     }
 
-    Deprecated_End_Int_Atomic(iflag);
+    End_Int_Atomic(iflag);
 
     return result;
 }

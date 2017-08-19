@@ -17,10 +17,17 @@
 #include <conio.h>
 
 /* System call wrappers */
-DEF_SYSCALL(Null, SYS_NULL, int, (void),, SYSCALL_REGS_0)
-    DEF_SYSCALL_NORETURN(Exit, SYS_EXIT, void, (int exitCode), int arg0 =
-                         exitCode;
-                         , SYSCALL_REGS_1)
+/* Null() takes no actual arguments; here we ensure that
+   registers are zeroed to support testing */
+DEF_SYSCALL(Null, SYS_NULL, int, (void), int arg0 = 0;
+            int arg1 = 0;
+            int arg2 = 0;
+            , SYSCALL_REGS_3)
+/* NORETURN annotates the system call with the noreturn 
+   annotation to help the compiler */
+DEF_SYSCALL_NORETURN(Exit, SYS_EXIT, void, (int exitCode),
+                     int arg0 = exitCode;
+                     , SYSCALL_REGS_1)
 DEF_SYSCALL(Spawn_Program, SYS_SPAWN, int,
                 (const char *program, const char *command,
                  int background), const char *arg0 = program;

@@ -14,7 +14,9 @@
 #include <geekos/malloc.h>
 #include <geekos/lock.h>
 #include <string.h>
+#include <geekos/synch.h>
 
+struct Mutex mallocLock;
 
 /*
  * Initialize the heap starting at given address and occupying
@@ -23,6 +25,7 @@
 void Init_Heap(ulong_t start, ulong_t size) {
     Print("Creating kernel heap: start=%lx, size=%ld\n", start, size);
     bpool((void *)start, size);
+    Mutex_Init(&mallocLock);
 }
 
 /*
@@ -31,14 +34,14 @@ void Init_Heap(ulong_t start, ulong_t size) {
  * allocation.
  */
 void *Malloc(ulong_t size) {
-    bool iflag;
     void *result;
 
     KASSERT(size > 0);
 
-    iflag = Deprecated_Begin_Int_Atomic();
+    Mutex_Lock(&mallocLock);
     result = bget(size);
-    Deprecated_End_Int_Atomic(iflag);
+    Mutex_Unlock(&mallocLock);
+
     return result;
 }
 
@@ -46,11 +49,10 @@ void *Malloc(ulong_t size) {
  * Free a buffer allocated with Malloc().
  */
 void Free(void *buf) {
-    bool iflag;
     KASSERT0((((unsigned int)buf) & 0x3) == 0,
              "attempt to free a corrupted pointer (wasn't four-byte aligned).");
 
-    iflag = Deprecated_Begin_Int_Atomic();
+    Mutex_Lock(&mallocLock);
     brel(buf);
-    Deprecated_End_Int_Atomic(iflag);
+    Mutex_Unlock(&mallocLock);
 }

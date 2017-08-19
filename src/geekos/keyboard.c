@@ -67,6 +67,8 @@ static unsigned s_shiftState = 0;
 #define NEXT(index) (((index) + 1) & QUEUE_MASK)
 static Keycode s_queue[QUEUE_SIZE];
 static int s_queueHead, s_queueTail;
+/* for accessing the queue */
+static Spin_Lock_t s_kbdQueueLock;
 
 /*
  * Wait queue for thread(s) waiting for keyboard events.
@@ -168,10 +170,12 @@ static __inline__ bool Is_Queue_Full(void) {
 }
 
 static __inline__ void Enqueue_Keycode(Keycode keycode) {
+    Spin_Lock(&s_kbdQueueLock);
     if(!Is_Queue_Full()) {
         s_queue[s_queueTail] = keycode;
         s_queueTail = NEXT(s_queueTail);
     }
+    Spin_Unlock(&s_kbdQueueLock);
 }
 
 static __inline__ Keycode Dequeue_Keycode(void) {
@@ -328,14 +332,12 @@ void Init_Keyboard(void) {
 bool Read_Key(Keycode * keycode) {
     bool result, iflag;
 
-    iflag = Deprecated_Begin_Int_Atomic();
-
+    Spin_Lock(&s_kbdQueueLock);
     result = !Is_Queue_Empty();
     if(result) {
         *keycode = Dequeue_Keycode();
     }
-
-    Deprecated_End_Int_Atomic(iflag);
+    Spin_Unlock(&s_kbdQueueLock);
 
     return result;
 }
@@ -364,18 +366,21 @@ Keycode Wait_For_Key(void) {
         return keycode;
     }
 
-    iflag = Deprecated_Begin_Int_Atomic();
-
+    iflag = Begin_Int_Atomic();
+    Spin_Lock(&s_kbdQueueLock);
     do {
         gotKey = !Is_Queue_Empty();
         if(gotKey)
             keycode = Dequeue_Keycode();
-        else
+        else {
+            Spin_Unlock(&s_kbdQueueLock);
             Wait(&s_keyboardWaitQueue);
+            Spin_Lock(&s_kbdQueueLock);
+        }
     }
     while (!gotKey);
-
-    Deprecated_End_Int_Atomic(iflag);
+    Spin_Unlock(&s_kbdQueueLock);
+    End_Int_Atomic(iflag);
 
     return keycode;
 }

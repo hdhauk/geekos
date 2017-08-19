@@ -143,11 +143,10 @@ static struct Filesystem *Lookup_Filesystem(const char *fstype) {
     struct Filesystem *fs;
 
     Mutex_Lock(&s_vfsLock);
-    fs = Get_Front_Of_Filesystem_List(&s_filesystemList);
-    while (fs != 0) {
+    for(fs = Get_Front_Of_Filesystem_List(&s_filesystemList);
+        fs != 0; fs = Get_Next_In_Filesystem_List(fs)) {
         if(strcmp(fs->fsName, fstype) == 0)
             break;
-        fs = Get_Next_In_Filesystem_List(fs);
     }
     Mutex_Unlock(&s_vfsLock);
 
@@ -166,13 +165,13 @@ static struct Mount_Point *Lookup_Mount_Point(const char *prefix) {
     Mutex_Lock(&s_vfsLock);
 
     /* Look for a mounted filesystem with a matching prefix */
-    mountPoint = Get_Front_Of_Mount_Point_List(&s_mountPointList);
-    while (mountPoint != 0) {
+    for(mountPoint = Get_Front_Of_Mount_Point_List(&s_mountPointList);
+        mountPoint != 0;
+        mountPoint = Get_Next_In_Mount_Point_List(mountPoint)) {
         Debug("Lookup mount point: %s,%s\n", prefix,
               mountPoint->pathPrefix);
         if(strcmp(prefix, mountPoint->pathPrefix) == 0)
             break;
-        mountPoint = Get_Next_In_Mount_Point_List(mountPoint);
     }
 
     Mutex_Unlock(&s_vfsLock);

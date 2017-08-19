@@ -50,7 +50,6 @@ extern int Copy_User_String(ulong_t uaddr, ulong_t len, ulong_t maxLen,
     int rc = 0;
     char *str;
 
-
     /* Ensure that string isn't too long. */
     if(len > maxLen)
         return EINVALID;
@@ -101,7 +100,6 @@ static int Sys_Null(struct Interrupt_State *state
  *   Never returns to user mode!
  */
 static int Sys_Exit(struct Interrupt_State *state) {
-    Deprecated_Enable_Interrupts();     /* ns14 */
     Exit(state->ebx);
     /* We will never get here. */
 }
@@ -134,13 +132,12 @@ static int Sys_PrintString(struct Interrupt_State *state) {
     uint_t length = state->ecx;
     char *buf = 0;
 
-    //    unlockKernel();
-    Deprecated_Enable_Interrupts();
+    KASSERT(Interrupts_Enabled());
 
     if(length > 0) {
         /* Copy string into kernel. */
         if((rc =
-            Copy_User_String(state->ebx, length, 1023,
+            Copy_User_String(state->ebx, length, 1024,
                              (char **)&buf)) != 0)
             goto done;
 
@@ -168,10 +165,6 @@ static int Sys_PrintString(struct Interrupt_State *state) {
   done:
     if(buf != 0)
         Free(buf);
-
-    /* somehow, ends up being locked here */
-    // lockKernel();
-    Deprecated_Disable_Interrupts();
 
     return rc;
 }
@@ -250,8 +243,6 @@ static int Sys_Spawn(struct Interrupt_State *state) {
     char *command = 0;
     struct Kernel_Thread *process = NULL;
 
-    Deprecated_Enable_Interrupts();
-
     /* Copy program name and command from user space. */
     if((rc =
         Copy_User_String(state->ebx, state->ecx, VFS_MAX_PATH_LEN,
@@ -277,8 +268,6 @@ static int Sys_Spawn(struct Interrupt_State *state) {
     if(command != 0)
         Free(command);
 
-    Deprecated_Disable_Interrupts();
-
     return rc;
 }
 
@@ -293,7 +282,6 @@ static int Sys_Wait(struct Interrupt_State *state) {
     int exitCode;
     struct Kernel_Thread *kthread;
 
-    Deprecated_Enable_Interrupts();
     kthread = Lookup_Thread(state->ebx, 0);
     if(kthread == 0) {
         // can't find the process id passed
@@ -308,7 +296,6 @@ static int Sys_Wait(struct Interrupt_State *state) {
     }
     exitCode = Join(kthread);
   finish:
-    Deprecated_Disable_Interrupts();
     return exitCode;
 }
 
@@ -402,6 +389,7 @@ static int Sys_ReturnSignal(struct Interrupt_State *state) {
  * Returns: pid of reaped process on success, -1 on error.
  */
 static int Sys_WaitNoPID(struct Interrupt_State *state) {
+    /* not required for Spring 2017 */
     TODO_P(PROJECT_SIGNALS, "Sys_WaitNoPID system call");
     return EUNSUPPORTED;
 }
@@ -443,7 +431,6 @@ static int Sys_GetTimeOfDay(struct Interrupt_State *state
 static int Sys_Mount(struct Interrupt_State *state) {
     int rc = 0;
     struct VFS_Mount_Request *args = 0;
-
 
     /* Allocate space for VFS_Mount_Request struct. */
     if((args =
@@ -526,8 +513,6 @@ static int Sys_Open(struct Interrupt_State *state) {
     struct File *file;
     int rc = 0;
 
-    Deprecated_Enable_Interrupts();
-
     rc = get_path_from_registers(state->ebx, state->ecx, &path);
     if(rc != 0) {
         goto leave;
@@ -543,7 +528,6 @@ static int Sys_Open(struct Interrupt_State *state) {
     Free(path);
 
   leave:
-    Deprecated_Disable_Interrupts();
     if(rc >= 0) {
         return add_file_to_descriptor_table(file);
     } else {
@@ -573,15 +557,13 @@ static int Sys_OpenDirectory(struct Interrupt_State *state) {
  */
 static int Sys_Close(struct Interrupt_State *state) {
     /* where is the file table? */
-    if(state->ebx > USER_MAX_FILES) {
+    if(state->ebx >= USER_MAX_FILES) {
         Print("unable to close fd index %d, out of range.\n", state->ebx);
         return EINVALID;
     }
     if(CURRENT_THREAD->userContext->file_descriptor_table[state->ebx]) {
-        Deprecated_Enable_Interrupts();
         Close(CURRENT_THREAD->userContext->
               file_descriptor_table[state->ebx]);
-        Deprecated_Disable_Interrupts();
         CURRENT_THREAD->userContext->file_descriptor_table[state->ebx] =
             0;
         return 0;
@@ -662,13 +644,12 @@ static int Sys_SymLink(struct Interrupt_State *state) {
  */
 static int Sys_Read(struct Interrupt_State *state) {
     int bytes_read = 0;
-    /* where is the file table? */
-    if(state->ebx > USER_MAX_FILES) {
+
+    if(state->ebx >= USER_MAX_FILES) {
         return EINVALID;
     }
     if(CURRENT_THREAD->userContext->file_descriptor_table[state->ebx]) {
         void *data_buffer;
-        Deprecated_Enable_Interrupts();
         data_buffer = Malloc(state->edx);
         if(!data_buffer) {
             return ENOMEM;
@@ -683,7 +664,6 @@ static int Sys_Read(struct Interrupt_State *state) {
             }
         }
         Free(data_buffer);
-        Deprecated_Disable_Interrupts();
         return bytes_read;
     } else {
         return ENOTFOUND;
@@ -714,20 +694,17 @@ static int Sys_ReadEntry(struct Interrupt_State *state) {
  */
 static int Sys_Write(struct Interrupt_State *state) {
     int bytes_written = 0;
-    /* where is the file table? */
-    if(state->ebx > USER_MAX_FILES) {
+
+    if(state->ebx >= USER_MAX_FILES) {
         return EINVALID;
     }
     if(CURRENT_THREAD->userContext->file_descriptor_table[state->ebx]) {
-        Deprecated_Enable_Interrupts();
         void *data_buffer = Malloc(state->edx);
         if(!data_buffer) {
-            Deprecated_Disable_Interrupts();
             return ENOMEM;
         }
         if(!Copy_From_User(data_buffer, state->ecx, state->edx)) {
             Free(data_buffer);
-            Deprecated_Disable_Interrupts();
             return EINVALID;
         }
         bytes_written =
@@ -735,7 +712,6 @@ static int Sys_Write(struct Interrupt_State *state) {
                   file_descriptor_table[state->ebx], data_buffer,
                   state->edx);
         Free(data_buffer);
-        Deprecated_Disable_Interrupts();
         return bytes_written;
     } else {
         return ENOTFOUND;
@@ -819,8 +795,6 @@ static int Sys_Format(struct Interrupt_State *state) {
     int rc = 0;
     char *devname = 0, *fstype = 0;
 
-    Deprecated_Enable_Interrupts();
-
     if((rc =
         Copy_User_String(state->ebx, state->ecx, BLOCKDEV_MAX_NAME_LEN,
                          &devname)) != 0 ||
@@ -836,7 +810,6 @@ static int Sys_Format(struct Interrupt_State *state) {
         Free(devname);
     if(fstype != 0)
         Free(fstype);
-    Deprecated_Disable_Interrupts();
     return rc;
 }
 
@@ -939,9 +912,7 @@ static int Sys_Execl(struct Interrupt_State *state) {
 
 static int Sys_Diagnostic(struct Interrupt_State *state) {
     (void)state;                /* warning appeasement */
-    Deprecated_Enable_Interrupts();
     Dump_Blockdev_Stats();
-    Deprecated_Disable_Interrupts();
     return 0;
 }
 
@@ -958,14 +929,12 @@ static int Sys_Disk_Properties(struct Interrupt_State *state) {
     char *path;
     unsigned int block_size, blocks_per_disk;
     int rc;
-    Deprecated_Enable_Interrupts();
     Copy_User_String(state->ebx, state->ecx, 100, &path);
     rc = Disk_Properties(path, &block_size, &blocks_per_disk);
     if(rc == 0) {
         Copy_To_User(state->edx, &block_size, sizeof(unsigned int));
         Copy_To_User(state->esi, &blocks_per_disk, sizeof(unsigned int));
     }
-    Deprecated_Disable_Interrupts();
     return 0;
 }
 
@@ -1029,6 +998,13 @@ static int Sys_Munmap(struct Interrupt_State *state) {
     return EUNSUPPORTED;
 }
 
+/*
+ * Sys_Alarm - create an alarm signal at a point in the future
+ *
+ * Params:
+ *   state->ebx - time in msecs to schedule alarm
+ * Returns: 0 on sucess or EINVALID for error
+ */
 static int Sys_Alarm(struct Interrupt_State *state) {
     TODO_P(PROJECT_SIGNALS, "Alarm");
     return EUNSUPPORTED;

@@ -2,6 +2,7 @@
  * Synchronization primitives
  * Copyright (c) 2001,2003,2004 David H. Hovemeyer <daveho@cs.umd.edu>
  * Copyright (c) 2003,2013,2014 Jeffrey K. Hollingsworth <hollings@cs.umd.edu>
+ * Copyright (c) 2016 Neil Spring <nspring@cs.umd.edu>
  *
  * All rights reserved.
  *
@@ -22,207 +23,92 @@
 #include <geekos/synch.h>
 #include <geekos/smp.h>
 
-/*
- * NOTES:
- * - The GeekOS mutex and condition variable APIs are based on those
- *   in pthreads.
- * - Unlike disabling interrupts, mutexes offer NO protection against
- *   concurrent execution of interrupt handlers.  Mutexes and
- *   condition variables should only be used from kernel threads,
- *   with interrupts enabled.
- */
+extern void Schedule_And_Unlock(Spin_Lock_t * unlock_me);
 
-/* ----------------------------------------------------------------------
- * Private functions
- * ---------------------------------------------------------------------- */
-
-/*
- * The mutex is currently locked.
- * Wait in the mutex's wait queue.
- */
-static void Mutex_Wait(struct Mutex *mutex) {
-    KASSERT(mutex->state == MUTEX_LOCKED);
-    Wait(&mutex->waitQueue);
-}
-
-
-static __inline__ void Mutex_Lock_Imp_Interrupts_Disabled(struct Mutex
-                                                          *mutex) {
-    while (mutex->state == MUTEX_LOCKED) {
-        Mutex_Wait(mutex);
-    }
-
-    KASSERT0(mutex->owner == 0,
-             "Expect mutex owner to be clear before we lock it\n");
-
-    /* Now it's ours! */
-    mutex->state = MUTEX_LOCKED;
-    mutex->owner = get_current_thread(0);       /* interrupts already disabled, can use fast impl. */
-}
-
-/*
- * Lock given mutex.
- */
-static __inline__ void Mutex_Lock_Imp(struct Mutex *mutex) {
-    /* Make sure we're not already holding the mutex */
-    KASSERT(!IS_HELD(mutex));
-
-    /* Wait until the mutex is in an unlocked state */
-    Deprecated_Disable_Interrupts();
-
-    Mutex_Lock_Imp_Interrupts_Disabled(mutex);
-
-    Deprecated_Enable_Interrupts();
-}
-
-static __inline__ void Mutex_Unlock_Imp_Interrupts_Disabled(struct Mutex
-                                                            *mutex) {
-    /* Make sure mutex was actually acquired by this thread. */
-    struct Kernel_Thread *current = get_current_thread(0);      /* interrupts already disabled. */
-    KASSERT0((mutex)->state == MUTEX_LOCKED,
-             "Attempting to unlock a mutex that is already unlocked");
-    KASSERT0((mutex)->owner == current,
-             "Attempting to unlock a mutex that this thread did not acquire");
-
-    /* clear out the owner information, as we no longer need it. */
+/* the following is a reimplementation of mutexes for smp (no interrupt disabling) */
+void Mutex_Init(struct Mutex *mutex) {
+    mutex->state = MUTEX_UNLOCKED;
+    Spin_Lock_Init(&mutex->guard);
     mutex->owner = 0;
+    Clear_Thread_Queue(&mutex->waitQueue);
+    Spin_Lock_Init(&mutex->waitQueue.lock);     /* ns15 */
+}
 
-    /* Unlock the mutex. */
+void Mutex_Lock(struct Mutex *mutex) {
+    int was_held;
+    int iflag = Begin_Int_Atomic();
+    Spin_Lock(&mutex->guard);
+    /* unnecessary to xchg given guard lock: predates guard; left alone. */
+    __asm__ __volatile__("movl %2, %0\n\t"
+                         "xchg %0, %1\n\t":"=a"(was_held),
+                         "=m"(mutex->state)
+                         :"i"(MUTEX_LOCKED));
+    if(was_held == MUTEX_LOCKED) {
+        Add_To_Back_Of_Thread_Queue(&mutex->waitQueue, CURRENT_THREAD);
+        Schedule_And_Unlock(&mutex->guard);
+    } else {
+        Spin_Unlock(&mutex->guard);
+    }
+    mutex->owner = get_current_thread(0);
+    End_Int_Atomic(iflag);
+}
+void Mutex_Lock_Interrupts_Disabled(struct Mutex *mutex) {
+    Mutex_Lock(mutex);
+}
+void Mutex_Unlock_Interrupts_Disabled(struct Mutex *mutex) {
+    Mutex_Unlock(mutex);
+}
 
-    /*
-     * If there are threads waiting to acquire the mutex,
-     * wake one of them up.  Note that it is legal to inspect
-     * the queue with interrupts enabled because preemption
-     * is disabled, and therefore we know that no thread can
-     * concurrently add itself to the queue.
-     */
+static void Mutex_Unlock_With_Guard_Held(struct Mutex *mutex) {
     if(!Is_Thread_Queue_Empty(&mutex->waitQueue)) {
-        mutex->state = MUTEX_UNLOCKED;
         Wake_Up_One(&mutex->waitQueue);
     } else {
         mutex->state = MUTEX_UNLOCKED;
     }
 }
 
-/*
- * Unlock given mutex.
- */
-static __inline__ void Mutex_Unlock_Imp(struct Mutex *mutex) {
-    Deprecated_Disable_Interrupts();    /* an interrupt once could move us from one processor to another as
-                                           we figure out what the current thread id is.  This is no longer the 
-                                           case, since CURRENT_THREAD disables interrupts, but it's safer to proceed
-                                           with interrupts disabled, since we have to disable them anyway. */
-    Mutex_Unlock_Imp_Interrupts_Disabled(mutex);
-    Deprecated_Enable_Interrupts();
-}
-
-
-/* ----------------------------------------------------------------------
- * Public functions
- * ---------------------------------------------------------------------- */
-
-/*
- * Initialize given mutex.
- */
-void Mutex_Init(struct Mutex *mutex) {
-    mutex->state = MUTEX_UNLOCKED;
-    mutex->owner = 0;
-    Clear_Thread_Queue(&mutex->waitQueue);
-    Spin_Lock_Init(&mutex->waitQueue.lock);     /* ns15 */
-}
-
-/*
- * Lock given mutex.
- */
-void Mutex_Lock(struct Mutex *mutex) {
-    KASSERT(Interrupts_Enabled());
-
-    // ns 15 debugging:
-    KASSERT(!g_preemptionDisabled[Get_CPU_ID()]);
-
-    Mutex_Lock_Imp(mutex);
-}
-
-/* If interrupts are already disabled, no sense enabling them for this.
-   however, we may go to sleep allowing someone else to run, so don't assume 
-   disabled interrupts means no one else runs. */
-void Mutex_Lock_Interrupts_Disabled(struct Mutex *mutex) {
-    KASSERT(!Interrupts_Enabled());
-    Mutex_Lock_Imp_Interrupts_Disabled(mutex);
-}
-
-/*
- * Unlock given mutex.
- */
 void Mutex_Unlock(struct Mutex *mutex) {
-    KASSERT(Interrupts_Enabled());
-    Mutex_Unlock_Imp(mutex);
+    int iflag = Begin_Int_Atomic();
+    Spin_Lock(&mutex->guard);
+    Mutex_Unlock_With_Guard_Held(mutex);
+    Spin_Unlock(&mutex->guard);
+    End_Int_Atomic(iflag);
 }
 
-void Mutex_Unlock_Interrupts_Disabled(struct Mutex *mutex) {
-    KASSERT(!Interrupts_Enabled());
-    Mutex_Unlock_Imp_Interrupts_Disabled(mutex);
+/* for when the mutex covers a thread queue and you're
+   inserting your own thread onto that queue */
+void Mutex_Unlock_And_Schedule(struct Mutex *mutex) {
+    int iflag = Begin_Int_Atomic();
+    Spin_Lock(&mutex->guard);
+    Mutex_Unlock_With_Guard_Held(mutex);
+    Schedule_And_Unlock(&mutex->guard);
+    End_Int_Atomic(iflag);      /* chance we don't get here. */
 }
 
-/*
- * Initialize given condition.
- */
 void Cond_Init(struct Condition *cond) {
     Clear_Thread_Queue(&cond->waitQueue);
     Spin_Lock_Init(&cond->waitQueue.lock);
 }
 
-/*
- * Wait on given condition (protected by given mutex).
- */
 void Cond_Wait(struct Condition *cond, struct Mutex *mutex) {
-    KASSERT(Interrupts_Enabled());
-
-    /* Ensure mutex is held. */
-    KASSERT(IS_HELD(mutex));
-
-    /*
-     * Release the mutex, but leave preemption disabled.
-     * No other threads will be able to run before this thread
-     * is able to wait.  Therefore, this thread will not
-     * miss the eventual notification on the condition.
-     */
-    Deprecated_Disable_Interrupts();
-    /* ns15, switched to disable interrupts before unlocking the 
-       mutex and waiting on the condition wait queue. */
-    Mutex_Unlock_Imp_Interrupts_Disabled(mutex);
-
-    /*
-     * Atomically reenable preemption and wait in the condition wait queue.
-     * Other threads can run while this thread is waiting,
-     * and eventually one of them will call Cond_Signal() or Cond_Broadcast()
-     * to wake up this thread.
-     * On wakeup, disable preemption again.
-     */
-    Wait(&cond->waitQueue);
-    Deprecated_Enable_Interrupts();
-
-    /* Reacquire the mutex. */
-    Mutex_Lock_Imp(mutex);
+    int iflag = Begin_Int_Atomic();
+    Spin_Lock(&mutex->guard);
+    Add_To_Back_Of_Thread_Queue(&cond->waitQueue, CURRENT_THREAD);
+    Mutex_Unlock_With_Guard_Held(mutex);
+    /* release the guard only after this thread is fully on the wait queue */
+    Schedule_And_Unlock(&mutex->guard);
+    End_Int_Atomic(iflag);
+    Mutex_Lock(mutex);
 }
 
-/*
- * Wake up one thread waiting on the given condition.
- * The mutex guarding the condition should be held!
- */
 void Cond_Signal(struct Condition *cond) {
-    KASSERT(Interrupts_Enabled());
-    Deprecated_Disable_Interrupts();    /* prevent scheduling */
+    int iflag = Begin_Int_Atomic();
     Wake_Up_One(&cond->waitQueue);
-    Deprecated_Enable_Interrupts();     /* resume scheduling */
+    End_Int_Atomic(iflag);
 }
 
-/*
- * Wake up all threads waiting on the given condition.
- * The mutex guarding the condition should be held!
- */
 void Cond_Broadcast(struct Condition *cond) {
-    int iflag = Deprecated_Begin_Int_Atomic();
+    int iflag = Begin_Int_Atomic();
     Wake_Up(&cond->waitQueue);
-    Deprecated_End_Int_Atomic(iflag);
+    End_Int_Atomic(iflag);
 }

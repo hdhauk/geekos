@@ -65,7 +65,7 @@ void Init_Interrupts(int cpuID) {
     }
 
     /* Re-enable interrupts */
-    __Deprecated_Enable_Interrupts();
+    Enable_Interrupts();
 }
 
 /*
@@ -82,7 +82,11 @@ bool Interrupts_Enabled(void) {
  * Dump interrupt state struct to screen
  */
 void Dump_Interrupt_State(struct Interrupt_State *state) {
-    uint_t errorCode = state->errorCode;
+    uint_t errorCode;
+
+    KASSERT(state);
+
+    errorCode = state->errorCode;
 
     Print("eax=%08x ebx=%08x ecx=%08x edx=%08x\n"
           "esi=%08x edi=%08x ebp=%08x\n"

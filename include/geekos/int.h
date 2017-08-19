@@ -114,7 +114,8 @@ Spin_Lock_t intLock;
 
 extern void lockKernel();
 extern void unlockKernel();
-extern bool Kernel_Is_Locked();
+extern bool Kernel_Is_Locked(); /* it is locked, perhaps by another thread or inherited */
+extern bool I_Locked_The_Kernel();      /* it is locked, definitely by me */
 
 /*
  * Block interrupts.  While making geekos speak multiple

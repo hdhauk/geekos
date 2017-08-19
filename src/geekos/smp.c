@@ -562,7 +562,7 @@ void Release_SMP(void) {
 }
 
 // global spin lock for all list operations
-Spin_Lock_t listLock;
+// unused. Spin_Lock_t listLock;
 
 Spin_Lock_t kthreadLock;
 
@@ -585,6 +585,7 @@ void Spin_Lock(Spin_Lock_t * lock) {
     KASSERT(lock);
     Spin_Lock_INTERNAL(lock);
     lock->locker = current;
+    lock->lockRA = (void *)__builtin_return_address(0);
     // Print("   %p by %p\n", lock, CURRENT_THREAD);
 }
 
@@ -603,14 +604,15 @@ int Try_Spin_Lock(Spin_Lock_t * lock) {
         return 0;
     } else {
         lock->locker = get_current_thread(0);
+        lock->lockRA = (void *)__builtin_return_address(0);
         return 1;
     }
 }
 
 void Spin_Unlock(Spin_Lock_t * lock) {
     extern void Spin_Unlock_INTERNAL(Spin_Lock_t * lock);
-    KASSERT(lock);
-    KASSERT(lock->lock);
+    KASSERT(lock);              /* must exist */
+    KASSERT(lock->lock);        /* must be locked */
     // KASSERT(lock->locker == g_currentThreads[Get_CPU_ID()]);
     lock->lastLocker = lock->locker;
     lock->locker = (void *)0xdead1000;  /* clearly invalid. */
@@ -652,12 +654,19 @@ bool Kernel_Is_Locked(void) {
     return (globalLock.lock);
 }
 
+/* mostly for assertions in tracking down globalLock issues */
+bool I_Locked_The_Kernel() {
+    return (globalLock.lock &&
+            globalLock.locker == get_current_thread(0));
+}
+
 
 struct Kernel_Thread *get_current_thread(int atomic) {
     TODO_P(PROJECT_PERCPU, "Replace get_current_thread");
-    int i = atomic ? Deprecated_Begin_Int_Atomic() : 0; /* an interrupt could break us between the cpuid get and the subscript */
+
+    int i = atomic ? Begin_Int_Atomic() : 0;    /* an interrupt could break us between the cpuid get and the subscript */
     struct Kernel_Thread *ret = g_currentThreads[Get_CPU_ID()];
     if(atomic)
-        Deprecated_End_Int_Atomic(i);
+        End_Int_Atomic(i);
     return ret;
 }

@@ -20,7 +20,7 @@ int main(int argc, char **argv) {
     int read;
     int inFd;
     struct VFS_File_Stat stat;
-    char buffer[1025];
+    char buffer[1000];
 
     if(argc != 2) {
         Print("usage: cat <file>\n");

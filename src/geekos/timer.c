@@ -27,6 +27,7 @@
 static int timerDebug = 0;
 static int timeEventCount;
 static int nextEventID;
+static Spin_Lock_t pendingTimerEventSpinLock;
 static timerEvent pendingTimerEvents[MAX_TIMER_EVENTS];
 
 /*
@@ -96,14 +97,23 @@ void Timer_Interrupt_Handler(struct Interrupt_State *state) {
     if(!id) {
         // XXXX - only core #0 is currently handling new timer events
         /* update timer events */
+        KASSERT(!Interrupts_Enabled());
+        Spin_Lock(&pendingTimerEventSpinLock);
         for(i = 0; i < timeEventCount; i++) {
             if(pendingTimerEvents[i].ticks == 0) {
                 if(timerDebug)
                     Print("timer: event %d expired (%d ticks)\n",
                           pendingTimerEvents[i].id,
                           pendingTimerEvents[i].origTicks);
+
+                /* timer callback may want to alter pending timer
+                   event structure so must unlock temporarily.
+                   likely some error if alarms are canceled or
+                   created. */
+                Spin_Unlock(&pendingTimerEventSpinLock);
                 (pendingTimerEvents[i].callBack) (pendingTimerEvents[i].
                                                   id);
+                Spin_Lock(&pendingTimerEventSpinLock);
             } else {
                 if(timerDebug)
                     Print("timer: event %d at %d ticks\n",
@@ -112,6 +122,7 @@ void Timer_Interrupt_Handler(struct Interrupt_State *state) {
                 pendingTimerEvents[i].ticks--;
             }
         }
+        Spin_Unlock(&pendingTimerEventSpinLock);
     }
     if(current->numTicks >= g_Quantum) {
         g_needReschedule[id] = true;
@@ -172,13 +183,13 @@ static void Spin(int count) {
  * how many iterations of the loop are executed per timer tick.
  */
 static void Calibrate_Delay(void) {
-    Deprecated_Disable_Interrupts();
+    Disable_Interrupts();
 
     /* Install temporarily interrupt handler */
     Install_IRQ(TIMER_IRQ, &Timer_Calibrate);
     Enable_IRQ(TIMER_IRQ);
 
-    Deprecated_Enable_Interrupts();
+    Enable_Interrupts();
 
     /* Wait a few ticks */
     while (g_numTicks < CALIBRATE_NUM_TICKS) ;
@@ -190,14 +201,14 @@ static void Calibrate_Delay(void) {
      */
     Spin(INT_MAX);
 
-    Deprecated_Disable_Interrupts();
+    Disable_Interrupts();
 
     /*
      * Mask out the timer IRQ again,
      * since we will be installing a real timer interrupt handler.
      */
     Disable_IRQ(TIMER_IRQ);
-    Deprecated_Enable_Interrupts();
+    Enable_Interrupts();
 }
 
 /* ----------------------------------------------------------------------
@@ -239,12 +250,11 @@ void Init_Timer(void) {
 int Start_Timer(int ticks, timerCallback cb) {
     int returned_timer_id;
 
-    KASSERT(!Interrupts_Enabled());
-
     if(timeEventCount == MAX_TIMER_EVENTS) {
         Print
             ("timeEventCount == %d == MAX_TIMER_EVENTS; cannot start a new timer",
              MAX_TIMER_EVENTS);
+        /* intentionally not acquiring a lock for this debugging dump */
         int i;
         for(i = 0; i < MAX_TIMER_EVENTS; i++) {
             Print("%d: cb 0x%p in %d/%d ticks", i,
@@ -254,6 +264,9 @@ int Start_Timer(int ticks, timerCallback cb) {
         }
         return -1;
     } else {
+        int iflag = Begin_Int_Atomic();
+        Spin_Lock(&pendingTimerEventSpinLock);
+
         returned_timer_id = ++nextEventID;      /* avoid returning 0. */
         pendingTimerEvents[timeEventCount].id = returned_timer_id;
         pendingTimerEvents[timeEventCount].callBack = cb;
@@ -261,26 +274,34 @@ int Start_Timer(int ticks, timerCallback cb) {
         pendingTimerEvents[timeEventCount].origTicks = ticks;
         timeEventCount++;
 
+        Spin_Unlock(&pendingTimerEventSpinLock);
+        End_Int_Atomic(iflag);
         return returned_timer_id;
     }
 }
 
 int Get_Remaing_Timer_Ticks(int id) {
     int i;
+    int ret = -1;
 
-    KASSERT(!Interrupts_Enabled());
+    int iflag = Begin_Int_Atomic();
+    Spin_Lock(&pendingTimerEventSpinLock);
     for(i = 0; i < timeEventCount; i++) {
         if(pendingTimerEvents[i].id == id) {
-            return pendingTimerEvents[i].ticks;
+            ret = pendingTimerEvents[i].ticks;
+            break;
         }
     }
 
-    return -1;
+    Spin_Unlock(&pendingTimerEventSpinLock);
+    End_Int_Atomic(iflag);
+    return ret;
 }
 
 int Cancel_Timer(int id) {
     int i;
-    KASSERT(!Interrupts_Enabled());
+    int iflag = Begin_Int_Atomic();
+    Spin_Lock(&pendingTimerEventSpinLock);
     for(i = 0; i < timeEventCount; i++) {
         if(pendingTimerEvents[i].id == id) {
             if(timerDebug)
@@ -291,10 +312,14 @@ int Cancel_Timer(int id) {
             pendingTimerEvents[i] =
                 pendingTimerEvents[timeEventCount - 1];
             timeEventCount--;
+            Spin_Unlock(&pendingTimerEventSpinLock);
+            End_Int_Atomic(iflag);
             return 0;
         }
     }
 
+    Spin_Unlock(&pendingTimerEventSpinLock);
+    End_Int_Atomic(iflag);
     Print("timer: unable to find timer id %d to cancel it\n", id);
     return -1;
 }
