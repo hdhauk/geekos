@@ -8,7 +8,9 @@ build/pagefile.bin
 build/tools/builtFat.exe
 build/tools/builtFat.exe.dSYM/
 build/tools/gfs2f
+build/tools/gfs3f
 build/tools/gfs2f.dSYM/
+build/tools/gfs3f.dSYM/
 build/user/*.o
 build/user/*.exe
 .DS_Store
