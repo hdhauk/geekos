@@ -39,7 +39,6 @@ extern Spin_Lock_t kthreadLock;
 /*
  * Allocate a buffer for a user string, and
  * copy it into kernel space.
- * Interrupts must be disabled.
  */
 /* "extern" to note that it's used by semaphore and networking system calls, defined 
    in another file */
