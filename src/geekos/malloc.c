@@ -13,7 +13,7 @@
 #include <geekos/kassert.h>
 #include <geekos/malloc.h>
 #include <geekos/lock.h>
-#include <string.h>
+#include <geekos/string.h>
 #include <geekos/synch.h>
 
 struct Mutex mallocLock;

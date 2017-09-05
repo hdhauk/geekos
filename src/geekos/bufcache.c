@@ -17,7 +17,7 @@
 #include <geekos/blockdev.h>
 #include <geekos/bufcache.h>
 #include <geekos/screen.h>
-#include <string.h>
+#include <geekos/string.h>
 
 /*
  * Maximum number of buffers that are cached per-filesystem.
