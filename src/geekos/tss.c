@@ -17,6 +17,12 @@
  * ISBN 020155447X.
  */
 
+/* STUDENT WARNING: Do not modify this file.  No user
+   serviceable parts inside.  Test scripts may modify or
+   overwrite this file to ensure reference implementations
+   (e.g., checkPaging) are present or modified functions are
+   here. */
+
 #include <geekos/kassert.h>
 #include <geekos/defs.h>
 #include <geekos/gdt.h>
