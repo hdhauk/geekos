@@ -61,7 +61,7 @@ struct PFAT_Instance {
     int *fat;
     directoryEntry *rootDir;
     directoryEntry rootDirEntry;
-    struct Mutex lock;
+    struct Mutex lock;          /* instance lock guards fileList */
     struct PFAT_File_List fileList;
 };
 
@@ -70,12 +70,13 @@ struct PFAT_Instance {
  * In particular, this object contains a cache of the contents
  * of the file.
  * Kept in fsInfo field of File.
+ * May be shared by multiple struct File objects, so should contain
+ * no information that cannot be shared. 
  */
 struct PFAT_File {
     directoryEntry *entry;      /* Directory entry of the file */
     ulong_t numBlocks;          /* Number of blocks used by file */
-    int currBlock;
-    char *fileDataCache;        /* File data cache */
+    char *fileDataCache;        /* A pre-allocated block of data for temporary use */
     struct Mutex lock;          /* Synchronize concurrent accesses */
      DEFINE_LINK(PFAT_File_List, PFAT_File);
 };
@@ -102,44 +103,72 @@ static int PFAT_FStat(struct File *file, struct VFS_File_Stat *stat) {
     return 0;
 }
 
+/*  
+   Returns the device block at position n file blocks after
+   starting point b.  May return FAT_ENTRY_FREE or
+   FAT_ENTRY_EOF if there aren't so many blocks.  This helps
+   Read/Write by finding the start block for a given file
+   position.
+*/
+static inline ulong_t advance_by_n_blocks(struct PFAT_Instance *instance,
+                                          ulong_t b, ulong_t n) {
+    for(; n; n--) {
+        if(b == FAT_ENTRY_FREE || b == FAT_ENTRY_EOF) {
+            Print("Unexpected end of file in FAT\n");
+            return b;
+        }
+        b = instance->fat[b];
+    }
+    return b;
+}
+
 /*
  * Read function for PFAT files.
  */
-static int PFAT_Read(struct File *file, void *buf, ulong_t numBytes) {
+static int PFAT_Read(struct File *file, void *buf,
+                     ulong_t numBytesRequested) {
     struct PFAT_File *pfatFile = (struct PFAT_File *)file->fsData;
     struct PFAT_Instance *instance =
         (struct PFAT_Instance *)file->mountPoint->fsData;
-    ulong_t start = file->filePos;
-    ulong_t end = file->filePos + numBytes;
+    ulong_t start, end;
+    ulong_t startBlock, endBlock, curBlock;
+    ulong_t i;
+
+    /* Only allow one thread at a time to read this file, updating position. */
+    Mutex_Lock(&pfatFile->lock);
+
+    start = file->filePos;
+    end = file->filePos + numBytesRequested;
 
     if(pfatFile->entry->directory)
         return EINVALID;
 
     if(end > file->endPos) {
-        numBytes = file->endPos - file->filePos;
+        numBytesRequested = file->endPos - file->filePos;
         end = file->endPos;
     }
-    //Print("start:%d end:%d nb:%d  \n",start,end,numBytes);
-
-    ulong_t startBlock, endBlock, curBlock;
-    ulong_t i;
+    //Print("start:%d end:%d nb:%d  \n",start,end,numBytesRequested);
 
     /* Special case: can't handle reads longer than INT_MAX */
-    if(numBytes > INT_MAX)
+    if(numBytesRequested > INT_MAX) {
+        Mutex_Unlock(&pfatFile->lock);
         return EINVALID;
+    }
 
-    /* if the file is an even multiple of numBytes, then with repeated reads, 
+    /* if the file is an even multiple of numBytesRequested, then with repeated reads, 
        we may end up with a read starting just at the end of the file.  such
        is not invalid, it is just the end of the file. (ns) */
     if(start == file->endPos) {
+        Mutex_Unlock(&pfatFile->lock);
         return 0;
     }
 
     /* Make sure request represents a valid range within the file */
     if(start >= file->endPos || end > file->endPos || end < start) {
         Debug
-            ("Invalid read position: filePos=%lu, numBytes=%lu, endPos=%lu\n",
-             file->filePos, numBytes, file->endPos);
+            ("Invalid read position: filePos=%lu, numBytesRequested=%lu, endPos=%lu\n",
+             file->filePos, numBytesRequested, file->endPos);
+        Mutex_Unlock(&pfatFile->lock);
         return EINVALID;
     }
 
@@ -159,72 +188,69 @@ static int PFAT_Read(struct File *file, void *buf, ulong_t numBytes) {
      * file data cache, we issue requests to read them.
      */
     KASSERT(pfatFile->entry);
-    curBlock = pfatFile->currBlock;
-    ulong_t currOffset = 0;
-    ulong_t firstBlock;
 
-    for(i = startBlock; i < endBlock; ++i) {
+    curBlock =
+        advance_by_n_blocks(instance, pfatFile->entry->firstBlock,
+                            startBlock);
+
+    ulong_t numBytesRead = 0;
+
+    for(i = startBlock; i < endBlock;
+        i++, curBlock = instance->fat[curBlock]) {
+        int rc;
+
         /* Are we at a valid block? */
         if(curBlock == FAT_ENTRY_FREE || curBlock == FAT_ENTRY_EOF) {
             Print
                 ("Unexpected end of file in FAT at file block %lu of %lu\n",
                  i, endBlock);
+            Mutex_Unlock(&pfatFile->lock);
             return EIO;         /* probable filesystem corruption */
         }
 
-        /* Do we need to read this block? */
-        if(i >= startBlock) {
-            int rc = 0;
-
-            /* Only allow one thread at a time to read this block. */
-            Mutex_Lock(&pfatFile->lock);
-
-            rc = Block_Read(file->mountPoint->dev, curBlock,
-                            pfatFile->fileDataCache);
-
-            if(i == startBlock) {
-                // only copy part of the first block
-                int share;
-                if(numBytes < SECTOR_SIZE - startOffset) {
-                    // reading less than to end of sector
-                    memcpy(buf, pfatFile->fileDataCache + startOffset,
-                           numBytes);
-                    currOffset = numBytes;
-                } else {
-                    memcpy(buf, pfatFile->fileDataCache + startOffset,
-                           SECTOR_SIZE - startOffset);
-                    currOffset = SECTOR_SIZE - startOffset;
-                    /* Continue to next block */
-                    curBlock = instance->fat[curBlock];
-                }
-            } else if(i == endBlock - 1) {
-                memcpy(buf + currOffset, pfatFile->fileDataCache,
-                       numBytes - currOffset);
-                if(numBytes - currOffset == SECTOR_SIZE) {
-                    curBlock = instance->fat[curBlock];
-                }
-                currOffset += numBytes - currOffset;
-            } else {
-                memcpy(buf + currOffset, pfatFile->fileDataCache,
-                       SECTOR_SIZE);
-                currOffset += SECTOR_SIZE;
-                /* Continue to next block */
-                curBlock = instance->fat[curBlock];
-            }
-
-            /* Done attempting to fetch the block */
+        rc = Block_Read(file->mountPoint->dev, curBlock,
+                        pfatFile->fileDataCache);
+        if(rc != 0) {
+            Print("Unexpected block read error occurred\n");
             Mutex_Unlock(&pfatFile->lock);
+            return EIO;
         }
+
+        if(i == startBlock) {
+            // only copy part of the first block
+            if(numBytesRequested < SECTOR_SIZE - startOffset) {
+                // reading less than to end of sector
+                KASSERT(endBlock == i + 1);     /* last iteration */
+                memcpy(buf, pfatFile->fileDataCache + startOffset,
+                       numBytesRequested);
+                numBytesRead = numBytesRequested;
+            } else {
+                KASSERT(endBlock >= i + 1);     /* will continue */
+                memcpy(buf, pfatFile->fileDataCache + startOffset,
+                       SECTOR_SIZE - startOffset);
+                numBytesRead = SECTOR_SIZE - startOffset;
+            }
+        } else if(i == endBlock - 1) {
+            memcpy(buf + numBytesRead, pfatFile->fileDataCache,
+                   numBytesRequested - numBytesRead);
+            numBytesRead = numBytesRequested;
+        } else {
+            memcpy(buf + numBytesRead, pfatFile->fileDataCache,
+                   SECTOR_SIZE);
+            numBytesRead += SECTOR_SIZE;
+        }
+
     }
 
     //update position in file!
-    file->filePos += numBytes;
-    pfatFile->currBlock = curBlock;
+    file->filePos += numBytesRequested;
 
-    KASSERT(currOffset == numBytes);
+    Mutex_Unlock(&pfatFile->lock);
+
+    KASSERT(numBytesRead == numBytesRequested);
     Debug("Read satisfied!\n");
 
-    return numBytes;
+    return numBytesRead;
 }
 
 /*
@@ -235,8 +261,12 @@ static int PFAT_Write(struct File *file, void *ptr, ulong_t numBytes) {
     struct PFAT_File *pfatFile = (struct PFAT_File *)file->fsData;
     struct PFAT_Instance *instance =
         (struct PFAT_Instance *)file->mountPoint->fsData;
-    ulong_t start = file->filePos;
-    ulong_t end = file->filePos + numBytes;
+    ulong_t start, end;
+
+    Mutex_Lock(&pfatFile->lock);
+
+    start = file->filePos;
+    end = file->filePos + numBytes;
 
     if(pfatFile->entry->directory)
         return EINVALID;
@@ -268,50 +298,44 @@ static int PFAT_Write(struct File *file, void *ptr, ulong_t numBytes) {
     ulong_t endBlock = Round_Up_To_Block(end) / SECTOR_SIZE;
     // Print("start block: %d end block: %d\n",startBlock,endBlock);
 
-    int startOffset = start - (startBlock * SECTOR_SIZE);
-
     /*
      * Traverse the FAT finding the blocks of the file.
      * As we encounter requested blocks write them with the new data.
      */
     KASSERT(pfatFile->entry);
-    ulong_t curBlock = pfatFile->entry->firstBlock;
+    ulong_t curBlock =
+        advance_by_n_blocks(instance, pfatFile->entry->firstBlock,
+                            startBlock);
     ulong_t currOffset = 0;
     ulong_t i;
-    for(i = 0; i < endBlock; ++i) {
+    for(i = startBlock; i < endBlock; ++i) {
         /* Are we at a valid block? */
         if(curBlock == FAT_ENTRY_FREE || curBlock == FAT_ENTRY_EOF) {
             Print("Unexpected end of file in FAT at file block %lu\n", i);
+            Mutex_Unlock(&pfatFile->lock);
             return EIO;         /* probable filesystem corruption */
         }
 
-        /* Do we need to write this block? */
-        if(i >= startBlock) {
-            int rc = 0;
+        int rc =
+            Block_Write(file->mountPoint->dev, curBlock,
+                        &buf[currOffset]);
 
-            /* Only allow one thread at a time to read this block. */
-            Mutex_Lock(&pfatFile->lock);
+        currOffset += SECTOR_SIZE;
 
-            rc = Block_Write(file->mountPoint->dev, curBlock,
-                             &buf[currOffset]);
-
-            currOffset += SECTOR_SIZE;
-
-            /* Done attempting to fetch the block */
+        if(rc != 0) {
             Mutex_Unlock(&pfatFile->lock);
-
-            if(rc != 0)
-                return rc;
+            return rc;
         }
 
         /* Continue to next block */
-        ulong_t nextBlock = instance->fat[curBlock];
-        curBlock = nextBlock;
+        curBlock = instance->fat[curBlock];
     }
 
     //update position in file!
     file->filePos += numBytes;
-    pfatFile->currBlock = curBlock;
+
+    /* Done attempting to fetch the block */
+    Mutex_Unlock(&pfatFile->lock);
 
     return numBytes;
 }
@@ -323,21 +347,21 @@ static int PFAT_Seek(struct File *file, ulong_t pos) {
     struct PFAT_File *pfatFile = (struct PFAT_File *)file->fsData;
     struct PFAT_Instance *instance =
         (struct PFAT_Instance *)file->mountPoint->fsData;
+    int ret = 0;
 
-    if(pos >= file->endPos)
-        return EINVALID;
-    if(file->filePos != pos) {
-        // read from start of FAT linked list for this file to desired position 
-        file->filePos = pos;
-        KASSERT(pfatFile->entry);
-        ulong_t curBlock = pfatFile->entry->firstBlock;
-        uint_t i;
-        for(i = 0; i < pos; i += 512) {
-            curBlock = instance->fat[curBlock];
-        }
-        pfatFile->currBlock = curBlock;
+    Mutex_Lock(&pfatFile->lock);
+
+    if(pos >= file->endPos) {
+        ret = EINVALID;
+        goto done;
     }
-    return 0;
+
+    file->filePos = pos;
+
+  done:
+    Mutex_Unlock(&pfatFile->lock);
+    KASSERT(pfatFile->entry);
+    return ret;
 }
 
 /*
@@ -386,8 +410,7 @@ static int PFAT_Close_Dir(struct File *dir __attribute__ ((unused))) {
 static int PFAT_Read_Entry(struct File *dir, struct VFS_Dir_Entry *entry) {
     directoryEntry *directory;
     directoryEntry *pfatDirEntry;
-    struct PFAT_Instance *instance =
-        (struct PFAT_Instance *)dir->mountPoint->fsData;
+    // struct PFAT_Instance *instance = (struct PFAT_Instance*) dir->mountPoint->fsData;
 
     if(dir->filePos >= dir->endPos)
         return VFS_NO_MORE_DIR_ENTRIES; /* Reached the end of the directory. */
@@ -524,6 +547,7 @@ static struct PFAT_File *Get_PFAT_File(struct PFAT_Instance *instance,
 
         /* Add to instance's list of PFAT_File objects. */
         Add_To_Back_Of_PFAT_File_List(&instance->fileList, pfatFile);
+        /* safe to assert since we hold the instance lock */
         KASSERT(pfatFile->nextPFAT_File_List == 0);
     }
 
@@ -574,8 +598,6 @@ static int PFAT_Open(struct Mount_Point *mountPoint, const char *path,
         rc = ENOMEM;
         goto done;
     }
-
-    pfatFile->currBlock = pfatFile->entry->firstBlock;
 
     /* Create the file object. */
     file =
