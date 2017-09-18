@@ -31,74 +31,74 @@ INTERRUPT_STATE_SIZE equ 64
 ;   - INTERRUPT_STATE_SIZE above (count of registers pushed * 4) 
 
 %macro Save_Registers 0
-	push	eax
-	push	ebx
-	push	ecx
-	push	edx
-	push	esi
-	push	edi
-	push	ebp
-	push	ds
-	push	es
-	push	fs
-	push	gs                  
+    push	eax
+    push	ebx
+    push	ecx
+    push	edx
+    push	esi
+    push	edi
+    push	ebp
+    push	ds
+    push	es
+    push	fs
+    push	gs
 %endmacro
 
 ; Restore registers and clean up the stack after calling a handler function
 ; (i.e., just before we return from the interrupt via an iret instruction).
 %macro Restore_Registers 0
-	pop	gs
-	pop	fs
-	pop	es
-	pop	ds
-	pop	ebp
-	pop	edi
-	pop	esi
-	pop	edx
-	pop	ecx
-	pop	ebx
-	pop	eax
-	add	esp, 8	; skip int num and error code
+    pop	gs
+    pop	fs
+    pop	es
+    pop	ds
+    pop	ebp
+    pop	edi
+    pop	esi
+    pop	edx
+    pop	ecx
+    pop	ebx
+    pop	eax
+    add	esp, 8	; skip int num and error code
 %endmacro
 
 ; Code to activate a new user context (if necessary), before returning
 ; to executing a thread.  Should be called just before restoring
 ; registers (because the interrupt context is used).
 %macro Activate_User_Context 0
-	; If the new thread has a user context which is not the current
-	; one, activate it.
-	push    esp                     ; Interrupt_State pointer
-	Push_Current_Thread_PTR
-	call    Switch_To_User_Context
-	add     esp, 8                  ; clear 2 arguments
+    ; If the new thread has a user context which is not the current
+    ; one, activate it.
+    push    esp                     ; Interrupt_State pointer
+    Push_Current_Thread_PTR
+    call    Switch_To_User_Context
+    add     esp, 8                  ; clear 2 arguments
 %endmacro
 
 ; Code to rearrange the stack to activate a signal handler
 %macro Process_Signal 1
-	; Check if a signal is pending.  If so, we need to
-	; rearrange the stack so that when the thread restarts
-	; it will enter the signal handler and then afterward
-	; return to its original spot
-	push	esp
-	Push_Current_Thread_PTR
-	call	Check_Pending_Signal
-	add	esp, 8
-	cmp	eax, dword 0	
-	je	%1
-	; We have a pending signal, so we must arrange to
-	; call its signal handler
+    ; Check if a signal is pending.  If so, we need to
+    ; rearrange the stack so that when the thread restarts
+    ; it will enter the signal handler and then afterward
+    ; return to its original spot
+    push	esp
+    Push_Current_Thread_PTR
+    call	Check_Pending_Signal
+    add	esp, 8
+    cmp	eax, dword 0	
+    je	%1
+    ; We have a pending signal, so we must arrange to
+    ; call its signal handler
 ; 	push	esp
 ; 	call	Print_IS
 ; 	add	esp, 4
- 	push	esp
-	Push_Current_Thread_PTR
- 	call	Setup_Frame
- 	add	esp, 8
+    push	esp
+    Push_Current_Thread_PTR
+    call	Setup_Frame
+    add	esp, 8
 ; 	push	esp
 ; 	call	Print_IS
 ; 	add	esp, 4
 %endmacro
-	
+    
 ; Number of bytes between the top of the stack and
 ; the interrupt number after the general-purpose and segment
 ; registers have been saved.
@@ -116,8 +116,8 @@ EFLAGS_IF equ	word 0x200
 ; The argument is the interrupt number.
 %macro Int_With_Err 1
 align 16
-	push	dword %1	; push interrupt number
-	jmp	Handle_Interrupt ; jump to common handler
+    push	dword %1	; push interrupt number
+    jmp	Handle_Interrupt ; jump to common handler
 %endmacro
 
 ; Template for entry point code for interrupts that do not
@@ -126,9 +126,9 @@ align 16
 ; for all interrupts.
 %macro Int_No_Err 1
 align 16
-	push	dword 0		; fake error code
-	push	dword %1	; push interrupt number
-	jmp	Handle_Interrupt ; jump to common handler
+    push	dword 0		; fake error code
+    push	dword %1	; push interrupt number
+    jmp	Handle_Interrupt ; jump to common handler
 %endmacro
 
 
@@ -219,34 +219,34 @@ EXPORT Send_Timer_INT
 ; the parameter.
 align 8
 Load_IDTR:
-	mov	eax, [esp+4]
-	lidt	[eax]
-	ret
+    mov	eax, [esp+4]
+    lidt	[eax]
+    ret
 
 ;  Load the GDTR with 6-byte pointer whose address is
 ; passed as the parameter.  Assumes that interrupts
 ; are disabled.
 align 8
 Load_GDTR:
-	mov	eax, [esp+4]
-	lgdt	[eax]
-	; Reload segment registers
-	mov	ax, KERNEL_DS
-	mov	ds, ax
-	mov	es, ax
-	mov	fs, ax
-	mov	gs, ax
-	mov	ss, ax
-	jmp	KERNEL_CS:.here
+    mov	eax, [esp+4]
+    lgdt	[eax]
+    ; Reload segment registers
+    mov	ax, KERNEL_DS
+    mov	ds, ax
+    mov	es, ax
+    mov	fs, ax
+    mov	gs, ax
+    mov	ss, ax
+    jmp	KERNEL_CS:.here
 .here:
-	ret
+    ret
 
 ; Load the LDT whose selector is passed as a parameter.
 align 8
 Load_LDTR:
-	mov	eax, [esp+4]
-	lldt	ax
-	ret
+    mov	eax, [esp+4]
+    lldt	ax
+    ret
 
 ;
 ; Start paging
@@ -255,25 +255,25 @@ Load_LDTR:
 ;; nspring - ecx is caller save, ebx is callee save. 
 align 8
 Enable_Paging:
-	mov	eax, [esp+4]
-	mov	cr3, eax
-	mov	eax, cr3                
-	mov	cr3, eax
-	mov	ecx, cr0
-	or	ecx, 0x80000000
-	mov	cr0, ecx
-	ret
+    mov	eax, [esp+4]
+    mov	cr3, eax
+    mov	eax, cr3                
+    mov	cr3, eax
+    mov	ecx, cr0
+    or	ecx, 0x80000000
+    mov	cr0, ecx
+    ret
 
 ;
 ; Change PDBR 
 ;	load cr3 with the passed page directory pointer
 align 8
 Set_PDBR:
-	mov	eax, [esp+4]
-	mov	cr3, eax
-	; mov	eax, [esp+4]
-	; mov	cr3, eax
-	ret
+    mov	eax, [esp+4]
+    mov	cr3, eax
+    ; mov	eax, [esp+4]
+    ; mov	cr3, eax
+    ret
 
 ;
 ; Get the current PDBR.
@@ -282,8 +282,8 @@ Set_PDBR:
 ;
 align 8
 Get_PDBR:
-	mov	eax, cr3
-	ret
+    mov	eax, cr3
+    ret
 
 ;
 ; Flush TLB - just need to re-load cr3 to force this to happen
@@ -296,9 +296,9 @@ Get_PDBR:
 ;
 align 8
 Flush_TLB:
-	mov	eax, cr3
-	mov	cr3, eax
-	ret
+    mov	eax, cr3
+    mov	cr3, eax
+    ret
 
 
 APIC_BASE	equ	0xFEE00000
@@ -308,23 +308,23 @@ APIC_ID		equ	0x20
 ;; eax = &g_currentThreads[Get_CPU_ID()];
 ;;
 %macro Mov_EAX_Current_Thread_PTR 0
-	mov	eax, [APIC_BASE+APIC_ID]		;; load id of local APC (which is cpuid)
-	shr	eax, 24-2				;; id is in high 24 bits of register, but need id <<2
-	add	eax, g_currentThreads
+    mov	eax, [APIC_BASE+APIC_ID]		;; load id of local APC (which is cpuid)
+    shr	eax, 24-2				;; id is in high 24 bits of register, but need id <<2
+    add	eax, g_currentThreads
 %endmacro 
 
 ;; eax = *( &g_currentThreads[Get_CPU_ID()] )
 %macro Get_Current_Thread_To_EAX 0
-	Mov_EAX_Current_Thread_PTR
-	mov	eax, [eax]              
+    Mov_EAX_Current_Thread_PTR
+    mov	eax, [eax]              
 %endmacro
 %macro Set_Current_Thread_From_EBX 0
-	Mov_EAX_Current_Thread_PTR
-	mov	[eax], ebx
+    Mov_EAX_Current_Thread_PTR
+    mov	[eax], ebx
 %endmacro
 %macro Push_Current_Thread_PTR 0
-	Mov_EAX_Current_Thread_PTR
-	push	dword [eax]
+    Mov_EAX_Current_Thread_PTR
+    push	dword [eax]
 %endmacro
 
 %include "percpu.asm"
@@ -335,66 +335,58 @@ APIC_ID		equ	0x20
 ; registers, return from the interrupt.
 align 8
 Handle_Interrupt:
-	; Save registers (general purpose and segment)
-	Save_Registers
+    ; macro defined above to push registers and create Interrupt_State 
+    Save_Registers
 
 
+    ; Ensure that we're using the kernel data segment
+    mov	ax, KERNEL_DS
+    mov	ds, ax
+    mov	es, ax
 
-	; Ensure that we're using the kernel data segment
-	mov	ax, KERNEL_DS
-	mov	ds, ax
-	mov	es, ax
-
-;	; get the kernel lock if interrupts were on before int
-; 	test	word [esp+EFLAGS_SKIP], EFLAGS_IF 
-;	jz	.skipLock
-;	call	lockKernel
-.skipLock:
-
-	; Get the address of the C handler function from the
-	; table of handler functions.
-	mov	eax, g_interruptTable	; get address of handler table
-	mov	esi, [esp+REG_SKIP]	; get interrupt number
-	mov	ebx, [eax+esi*4]	; get address of handler function
+    ; Get the address of the C handler function from the
+    ; table of handler functions.
+    mov	eax, g_interruptTable	; get address of handler table
+    mov	esi, [esp+REG_SKIP]	; get interrupt number
+    mov	ebx, [eax+esi*4]	; get address of handler function
     
-    test ebx,ebx
-    jz .bail_no_handler
+    test ebx,ebx                ; if handler is null (ebx & ebx == 0), set ZF
+    jz .bail_no_handler         ; if ZF, halt for debugging.
 
-	; Call the handler.
-	; The argument passed is a pointer to an Interrupt_State struct,
-	; which describes the stack layout for all interrupts.
-	push	esp
-	call	ebx
-	add	esp, 4			; clear 1 argument
+    ; Call the handler.
+    ; The argument passed is a pointer to an Interrupt_State struct,
+    ; which describes the stack layout for all interrupts.
+    push esp                    ; struct Interrupt_State *
+    call ebx
+    add	esp, 4			; clear 1 argument
 
-	; If preemption is disabled, then the current thread
-	; keeps running.
-
-	mov	ebx, [APIC_BASE+APIC_ID]		;; load id of local APC (which is cpuid)
-	shr	ebx, 24-2				;; id is in high 24 bits of register, but need id <<2
-	cmp	[g_preemptionDisabled+ebx], dword 0
-	jne	.tramp_restore
+    ; If preemption is disabled, then the current thread
+    ; keeps running.
+    mov	ebx, [APIC_BASE+APIC_ID]		;; load id of local APC (which is cpuid)
+    shr	ebx, 24-2				;; id is in high 24 bits of register, but need id <<2
+    cmp	[g_preemptionDisabled+ebx], dword 0
+    jne	.tramp_restore
 
         ;;  nspring - check if kthreadLock is; if so, skip preemption.
         ;;  this is a hack.  it can help, but is not reliable (we are
         ;;  not acquiring the lock, but another thread might.
 ;;; TODO: move this into eax to leave ebx untouched to simplify the needReschedule comparison.
-	mov	ebx, [kthreadLock]		;; the lock value at the front of the spinlock.
-	jne	.tramp_restore
+    mov	ebx, [kthreadLock]		;; the lock value at the front of the spinlock.
+    jne	.tramp_restore
 
-	; See if we need to choose a new thread to run.
-	mov	ebx, [APIC_BASE+APIC_ID]		;; load id of local APC (which is cpuid)
-	shr	ebx, 24-2				;; id is in high 24 bits of register, but need id <<2
-	cmp	[g_needReschedule+ebx], dword 0
-	je	.tramp_restore
+    ; See if we need to choose a new thread to run.
+    mov	ebx, [APIC_BASE+APIC_ID]		;; load id of local APC (which is cpuid)
+    shr	ebx, 24-2				;; id is in high 24 bits of register, but need id <<2
+    cmp	[g_needReschedule+ebx], dword 0
+    je	.tramp_restore
 
-	; Put current thread back on the run queue
-	Push_Current_Thread_PTR
-	call	Make_Runnable
-	add	esp, 4			; clear 1 argument
+    ; Put current thread back on the run queue
+    Push_Current_Thread_PTR
+    call	Make_Runnable
+    add	esp, 4			; clear 1 argument
 
-	; Save stack pointer in current thread context, and
-	; clear numTicks field.
+    ; Save stack pointer in current thread context, and
+    ; clear numTicks field.
     Get_Current_Thread_To_EAX
     test eax,eax
     jne .ok 
@@ -404,46 +396,41 @@ Handle_Interrupt:
 .bail_no_handler:
     call Hardware_Shutdown
 .ok:
-	mov	[eax+0], esp		; esp field
-	mov	[eax+4], dword 0	; numTicks field
+    mov	[eax+0], esp		; esp field
+    mov	[eax+4], dword 0	; numTicks field
 
-	; Pick a new thread to run, and switch to its stack
-	call	Get_Next_Runnable
-	mov	ebx, eax               ; save new thread into ebx
+    ; Pick a new thread to run, and switch to its stack
+    call	Get_Next_Runnable
+    mov	ebx, eax               ; save new thread into ebx
     test eax, eax              ; possibly redundant setting of the flags.
     jne .ok2
     jmp .bail_null_runnable_thread
 .ok2:
     Set_Current_Thread_From_EBX
-	mov	esp, [ebx+0]		   ; load esp from new thread
+    mov	esp, [ebx+0]		   ; load esp from new thread
 
-	; Clear "need reschedule" flag
-	mov	ebx, [APIC_BASE+APIC_ID]		;; load id of local APC (which is cpuid)
-	shr	ebx, 24-2				;; id is in high 24 bits of register, but need id <<2
-	mov	[g_needReschedule+ebx], dword 0
+    ; Clear "need reschedule" flag
+    mov	ebx, [APIC_BASE+APIC_ID]		;; load id of local APC (which is cpuid)
+    shr	ebx, 24-2				;; id is in high 24 bits of register, but need id <<2
+    mov	[g_needReschedule+ebx], dword 0
 
 .restore:
-	; Activate the user context, if necessary.
-	Activate_User_Context
+    ; Activate the user context, if necessary.
+    Activate_User_Context
 
-	Process_Signal .finish
+    Process_Signal .finish
 .finish:	
 
-	; clear APIC Interrupt info
-	mov	[APIC_BASE+APIC_EOI], dword 0
+    ; clear APIC Interrupt info
+    mov	[APIC_BASE+APIC_EOI], dword 0
 
-;	; releasee the kernel lock if interrupts will be re-enabled
-; 	test	word [esp+EFLAGS_SKIP], EFLAGS_IF
-;	jz	.skipUnlock
-;	call	unlockKernel
-.skipUnlock:
-        mov eax, esp            ; debug ns
+    mov eax, esp            ; debug ns: get esp into a register that's dumped on exception.
 
-	; Restore registers
-	Restore_Registers
+    ; Restore registers
+    Restore_Registers
 
-	; Return from the interrupt.
-	iret
+    ; Return from the interrupt.
+    iret
 .bail_null_current_thread:
     call Hardware_Shutdown
 .bail_null_runnable_thread:
@@ -465,89 +452,77 @@ Handle_Interrupt:
 ; ----------------------------------------------------------------------
 align 16
 Switch_To_Thread:
-	; Modify the stack to allow a later return via an iret instruction.
-	; We start with a stack that looks like this:
-	;
-	;            thread_ptr
-	;    esp --> return addr
-	;
-	; We change it to look like this:
-	;
-	;            thread_ptr
-	;            eflags
-	;            cs
-	;    esp --> return addr
+    ; Modify the stack to allow a later return via an iret instruction.
+    ; We start with a stack that looks like this:
+    ;
+    ;            thread_ptr
+    ;    esp --> return addr
+    ;
+    ; We change it to look like this:
+    ;
+    ;            thread_ptr
+    ;            eflags
+    ;            cs
+    ;    esp --> return addr
 
-	push	eax		; save eax
-	mov	eax, [esp+4]	; get return address
-	mov	[esp-4], eax	; move return addr down 8 bytes from orig loc
-	add	esp, 8		; move stack ptr up
-	pushfd			; put eflags where return address was
-	mov	eax, [esp-4]	; restore saved value of eax
-	push	dword KERNEL_CS	; push cs selector
-	sub	esp, 4		; point stack ptr at return address
+    push	eax		; save eax
+    mov	eax, [esp+4]	; get return address
+    mov	[esp-4], eax	; move return addr down 8 bytes from orig loc
+    add	esp, 8		; move stack ptr up
+    pushfd			; put eflags where return address was
+    mov	eax, [esp-4]	; restore saved value of eax
+    push	dword KERNEL_CS	; push cs selector
+    sub	esp, 4		; point stack ptr at return address
 
-	; Push fake error code and interrupt number
-	push	dword 0
-	push	dword 0
+    ; Push fake error code and interrupt number
+    push	dword 0
+    push	dword 0
 
-	; Save general purpose registers.
-	Save_Registers
+    ; Save general purpose registers.
+    Save_Registers
 
-	; get the kernel lock if interrupts were on before int
-; 	test	word [esp+EFLAGS_SKIP], EFLAGS_IF
-;	jz	.skipLock
-;	call	lockKernel
-;	.skipLock:
-
-	; Save stack pointer in the thread context struct (at offset 0).
+    ; Save stack pointer in the thread context struct (at offset 0).
     Get_Current_Thread_To_EAX
-	mov	[eax+0], esp
+    mov	[eax+0], esp
 
-	; Clear numTicks field in thread context, since this
-	; thread is being suspended.
-	mov	[eax+4], dword 0
+    ; Clear numTicks field in thread context, since this
+    ; thread is being suspended.
+    mov	[eax+4], dword 0
 
-	; Load the pointer to the new thread context into eax.
-	; We skip over the Interrupt_State struct on the stack to
-	; get the parameter.
-	mov	eax, [esp+INTERRUPT_STATE_SIZE]
+    ; Load the pointer to the new thread context into eax.
+    ; We skip over the Interrupt_State struct on the stack to
+    ; get the parameter.
+    mov	eax, [esp+INTERRUPT_STATE_SIZE]
 
-	; Make the new thread current, and switch to its stack.
-	mov	ebx, eax
+    ; Make the new thread current, and switch to its stack.
+    mov	ebx, eax
     Set_Current_Thread_From_EBX
-	mov	esp, [ebx+0]
+    mov	esp, [ebx+0]
 
-	; Activate the user context, if necessary.
-	Activate_User_Context
+    ; Activate the user context, if necessary.
+    Activate_User_Context
 
-	; clear APIC Interrupt info
-	mov	[APIC_BASE+APIC_EOI], dword 0
+    ; clear APIC Interrupt info
+    mov	[APIC_BASE+APIC_EOI], dword 0
 
-	Process_Signal .complete
+    Process_Signal .complete
 .complete:	
+    mov eax, esp            ; debug ns; get esp into a register that is dumped if there's a trap.
 
-	; release the kernel lock, if enabling interrupts on iret
-; 	test	word [esp+EFLAGS_SKIP], EFLAGS_IF
-;	jz	.skipUnlock
-;	call	unlockKernel
-;	.skipUnlock:
-        mov eax, esp            ; debug ns; get esp into a register that is dumped if there's a trap.
+    ; Restore general purpose and segment registers, and clear interrupt
+    ; number and error code.
+    Restore_Registers
 
-	; Restore general purpose and segment registers, and clear interrupt
-	; number and error code.
-	Restore_Registers
-
-	; We'll return to the place where the thread was
-	; executing last.
-	iret
+    ; We'll return to the place where the thread was
+    ; executing last.
+    iret
 
 ; Return current contents of eflags register.
 align 16
 Get_Current_EFLAGS:
-	pushfd			; push eflags
-	pop	eax		; pop contents into eax
-	ret
+    pushfd			; push eflags
+    pop	eax		; pop contents into eax
+    ret
 
 lockops:                      
      dd      0
@@ -579,8 +554,8 @@ Spin_Unlock_INTERNAL:
      ret            
 
 Send_Timer_INT:
-	int	0h
-	ret
+    int	0h
+    ret
 
 ; ----------------------------------------------------------------------
 ; Generate interrupt-specific entry points for all interrupts.
