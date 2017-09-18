@@ -456,7 +456,7 @@ static int Floppy_Transfer(int direction, int driveNum, int blockNum) {
     enum DMA_Direction dmaDirection =
         direction == FLOPPY_READ ? DMA_READ : DMA_WRITE;
     uchar_t command;
-    uchar_t st0, st1, st2;
+    uchar_t st0;
     int result = -1;
 
     KASSERT(driveNum == 0);     /* FIXME */
@@ -505,8 +505,8 @@ static int Floppy_Transfer(int direction, int driveNum, int blockNum) {
 
     /* Read results */
     st0 = Floppy_In();
-    st1 = Floppy_In();
-    st2 = Floppy_In();
+    Floppy_In();                /* was stored as st1 */
+    Floppy_In();                /* was stored as st2 */
     Floppy_In();                /* cylinder */
     Floppy_In();                /* head */
     Floppy_In();                /* sector number */
@@ -568,8 +568,7 @@ static void Floppy_Request_Thread(ulong_t arg __attribute__ ((unused))) {
 
         /* Wait for an I/O request to arrive */
         Debug("FRQ: Request thread waiting for a request\n");
-        request =
-            Dequeue_Request(&s_floppyRequestQueue, &s_floppyWaitQueue);
+        request = Dequeue_Request(&s_floppyRequestQueue);
         Debug("FRQ: Got a floppy request [@%x]\n", request);
         KASSERT(request->type == BLOCK_READ ||
                 request->type == BLOCK_WRITE);

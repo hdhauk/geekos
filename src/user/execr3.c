@@ -25,6 +25,7 @@ int main(int argc, char *argv[]) {
         snprintf(command_line, 256, "execr2 %d", recursion_depth - 1);
         r = Execl("/c/execr2.exe", command_line);
         Print("returned from Execl.  not good.\n");
+        Print("(returned %d)\n", r);
         assert(0);
     }
     return 0;                   /* compiler appeasement */

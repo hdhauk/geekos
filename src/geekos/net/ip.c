@@ -25,9 +25,8 @@
 static uchar_t s_baseIpAddress[] = { 169, 254, 0, 0 };
 static uchar_t s_baseSubnet[] = { 255, 255, 255, 0 };
 
-static union IP_Address s_inaddrAny = {.address = INADDR_ANY };
-static union IP_Address s_inaddrBroadcast = {.address =
-        INADDR_BROADCAST };
+// unused static union IP_Address s_inaddrAny = { .address = INADDR_ANY };
+union IP_Address s_inaddrBroadcast = {.address = INADDR_BROADCAST };
 
 static int IP_Device_Get_By_IP(struct IP_Device **device,
                                IP_Address * address);

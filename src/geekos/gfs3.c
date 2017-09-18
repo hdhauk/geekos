@@ -113,7 +113,7 @@ static int GFS3_Read_Entry(struct File *dir, struct VFS_Dir_Entry *entry) {
 }
 
 /*static*/ struct File_Ops s_gfs3DirOps = {
-    &GFS3_FStat,
+    &GFS3_FStat_Directory,
     0,                          /* Read */
     0,                          /* Write */
     0,                          /* Seek */

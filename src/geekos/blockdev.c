@@ -233,8 +233,7 @@ void Post_Request_And_Wait(struct Block_Request *request) {
  * Wait for a block request to arrive.
  */
 struct Block_Request *Dequeue_Request(struct Block_Request_List
-                                      *requestQueue,
-                                      struct Thread_Queue *waitQueue) {
+                                      *requestQueue) {
     struct Block_Request *request;
 
     Mutex_Lock(&s_blockdevRequestLock);

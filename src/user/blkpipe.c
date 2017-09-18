@@ -23,8 +23,12 @@ int global = 0;
 int sigpiped = 0;
 unsigned char bigbuf[32768];
 void sigpipe_handler(int signal) {
-    Print("sigpipe taken!\n");
-    sigpiped = 1;
+    if(signal == SIGPIPE) {
+        Print("sigpipe taken!\n");
+        sigpiped = 1;
+    } else {
+        Print("unexpected signal received!\n");
+    }
 }
 
 void test_bigwrite(void) {

@@ -146,8 +146,6 @@ int GOSFS_Delete(struct Mount_Point *mp, const char *const_path,
 
 
 int GOSFS_SetSetUid(struct Mount_Point *mp, const char *file, int setuid) {
-    struct File *pFile;
-
     TODO_P(PROJECT_USER, "GeekOS file system SetSetUID operation");
     return EUNSUPPORTED;
 }

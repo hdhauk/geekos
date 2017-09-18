@@ -168,8 +168,6 @@ int CFS_SymLink(struct Mount_Point *mp, const char *oldpath,
 }
 
 int CFS_SetSetUid(struct Mount_Point *mp, const char *file, int setuid) {
-    struct File *pFile;
-
     TODO_P(PROJECT_USER, "chameleon file system SetSetUID operation");
     return EUNSUPPORTED;
 }

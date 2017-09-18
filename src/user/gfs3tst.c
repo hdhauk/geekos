@@ -1087,7 +1087,7 @@ int tExhaustDisk() {
     int files_needed_to_use_inodes =
         disksize_mb * 1024 * 1024 / 64 / SIZEOF_STRUCT_GFS2_INODE;
 
-    unsigned int lower_limit_on_inodes = blocks_on_disk / 10;
+    // unsigned int lower_limit_on_inodes = blocks_on_disk / 10;
 
     int fi, retC, retW, retD;
     char writeme[512];

@@ -190,7 +190,6 @@ int Net_Device_Receive(struct Net_Device *device, ushort_t ringBufferPage) {
     struct Net_Device_Packet *packet;
     struct Net_Device_Header hdr;
     ushort_t ringBufferOffset;
-    ulong_t baseAddr = device->baseAddr;
     int rc = 0;
 
     KASSERT(!Interrupts_Enabled());

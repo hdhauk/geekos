@@ -66,7 +66,6 @@ static void GPF_Handler(struct Interrupt_State *state) {
 static void Syscall_Handler(struct Interrupt_State *state) {
     /* The system call number is specified in the eax register. */
     uint_t syscallNum;
-    struct User_Context *user;
 
     Enable_Interrupts();
 

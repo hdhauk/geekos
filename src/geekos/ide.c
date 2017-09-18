@@ -140,7 +140,6 @@ static int IDE_Read(int driveNum, int blockNum, char *buffer) {
     int sector;
     int cylinder;
     short *bufferW;
-    int reEnable = 0;
 
     if(driveNum < 0 || driveNum > (numDrives - 1)) {
         if(ideDebug)
@@ -216,7 +215,6 @@ static int IDE_Write(int driveNum, int blockNum, char *buffer) {
     int sector;
     int cylinder;
     short *bufferW;
-    int reEnable = 0;
 
     if(driveNum < 0 || driveNum > (numDrives - 1)) {
         return IDE_ERROR_BAD_DRIVE;
@@ -310,7 +308,7 @@ static void IDE_Request_Thread(ulong_t arg __attribute__ ((unused))) {
         int rc;
 
         /* Wait for a request to arrive */
-        request = Dequeue_Request(&s_ideRequestQueue, &s_ideWaitQueue);
+        request = Dequeue_Request(&s_ideRequestQueue);
 
         /* Do the I/O */
         if(request->type == BLOCK_READ)

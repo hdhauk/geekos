@@ -17,7 +17,7 @@
 #include <string.h>
 #include <fileio.h>
 
-int main(int argc, char **argv) {
+int main() {
     int i;
     int read_fd, write_fd;
     int read_bytes, written_bytes, pipe_retval;

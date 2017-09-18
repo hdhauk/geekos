@@ -110,6 +110,7 @@ static int Sys_Exit(struct Interrupt_State *state) {
 */
 extern void Hardware_Shutdown();        /* is in keyboard.c for odd reasons */
 static int Sys_ShutDown(struct Interrupt_State *state) {
+    (void)state;                /* unused */
     Print("------------------- THE END ------------------\n");
     Hardware_Shutdown();
     /* We will never get here. */
@@ -180,6 +181,7 @@ static int Sys_GetKey(struct Interrupt_State *state) {
     TODO_P(PROJECT_SERIAL,
            "Get a key from the serial console if appropriate");
 
+    (void)state;                /* unused */
     return Wait_For_Key();
 }
 
@@ -305,6 +307,7 @@ static int Sys_Wait(struct Interrupt_State *state) {
  * Returns: the pid of the current thread
  */
 static int Sys_GetPID(struct Interrupt_State *state) {
+    (void)state;                /* unused */
     return CURRENT_THREAD->pid;
 }
 
@@ -777,6 +780,7 @@ static int Sys_CreateDir(struct Interrupt_State *state) {
  */
 static int Sys_Sync(struct Interrupt_State *state) {
     TODO_P(PROJECT_FS, "Sync system call");
+    (void)state;                /* unused */
     return EUNSUPPORTED;
 }
 
@@ -847,6 +851,7 @@ static int Sys_WriteBlock(struct Interrupt_State *state) {
 
 static int Sys_GetUid(struct Interrupt_State *state) {
     TODO_P(PROJECT_USER, "Sys_GetUid system call");
+    (void)state;                /* unused */
     return EUNSUPPORTED;
 }
 

@@ -108,8 +108,7 @@ struct Block_Request *Create_Request(struct Block_Device *dev,
                                      void *buf);
 void Post_Request_And_Wait(struct Block_Request *request);
 struct Block_Request *Dequeue_Request(struct Block_Request_List
-                                      *requestQueue,
-                                      struct Thread_Queue *waitQueue);
+                                      *requestQueue);
 void Notify_Request_Completion(struct Block_Request *request,
                                enum Request_State state, int errorCode);
 

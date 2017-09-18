@@ -396,7 +396,6 @@ extern int Sys_IPSend(struct Interrupt_State *state) {
     IP_Address ipAddress;
     int rc = 0;
     char *string = NULL;
-    struct Net_Buf *nBuf;
 
     if(!Copy_From_User(ipAddress.ptr, state->ebx, 4)) {
         rc = EINVALID;

@@ -49,6 +49,8 @@ int Socket_Listen(ulong_t id, ulong_t backlog) {
 int Socket_Accept(ulong_t id, IP_Address * clientIpAddress,
                   ushort_t * clientPort) {
     int fd = -1;
+    (void)clientIpAddress;
+    (void)clientPort;
     TODO_P(PROJECT_SOCKETS, "Accept (returns a socket!)");
     return fd;
 }
@@ -94,6 +96,7 @@ int Socket_Dispatch(struct IP_Device *device, uchar_t type,
                     IP_Address * destAddress, IP_Address * srcAddress,
                     struct Net_Buf *nBuf, void *data) {
     int rc = 0;
+    (void)device;
     TODO_P(PROJECT_SOCKETS, "socket dispatch (received packet)");
     return rc;
 }

@@ -345,8 +345,6 @@ static int PFAT_Write(struct File *file, void *ptr, ulong_t numBytes) {
  */
 static int PFAT_Seek(struct File *file, ulong_t pos) {
     struct PFAT_File *pfatFile = (struct PFAT_File *)file->fsData;
-    struct PFAT_Instance *instance =
-        (struct PFAT_Instance *)file->mountPoint->fsData;
     int ret = 0;
 
     Mutex_Lock(&pfatFile->lock);

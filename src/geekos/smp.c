@@ -207,7 +207,7 @@ static int Get_MP_Tables() {
     char *curr = ((char *)ct) + sizeof(MP_Config_Table);
     MP_Processor *proc;
     MP_IO_APIC *ioAPIC;
-    MP_IO_Interrupt *intAss;
+    // unused MP_IO_Interrupt *intAss;
     int i;
     for(i = 0; i < ct->entry_Count; i++) {
         switch (*curr) {
@@ -232,7 +232,7 @@ static int Get_MP_Tables() {
 
             case MP_CONFIG_ENTRY_LOCAL_INTERRUPT_ASSIGNMENT:
             case MP_CONFIG_ENTRY_IO_INTERRUPT_ASSIGNMENT:
-                intAss = (MP_IO_Interrupt *) curr;
+                // unused intAss = (MP_IO_Interrupt *) curr;
                 curr += 8;
                 break;
 
@@ -337,6 +337,7 @@ static void send_INIT(int APIC_Id) {
 
 static void Spurious_Interrupt_Handler(struct Interrupt_State *state) {
     int CPUid = Get_CPU_ID();
+    (void)state;
     CPUs[CPUid].spuriousCount++;
 }
 
@@ -453,8 +454,6 @@ volatile void *Secondary_Stack;
 
 void Init_SMP(void) {
     int i;
-    int irq;
-    int count;
     int apicid;
 
     Print("Initializing SMP...\n");
@@ -498,9 +497,10 @@ void Init_SMP(void) {
  * C Entry point for newly booted secondary CPUs
  */
 void Secondary_Start(int stack) {
-    int i;
     int CPUid;
     int APICid;
+
+    (void)stack;                // unused argument.
 
     CPUid = Get_CPU_ID();
 
@@ -552,7 +552,6 @@ void Secondary_Start(int stack) {
 
 void Release_SMP(void) {
     int i;
-    int irq;
 
     for(i = 0; i < CPU_Count; i++) {
         CPUs[i].running = 1;

@@ -28,6 +28,11 @@ int main(int argc, char *argv[]) {
     int count;
     int blocksRead = 0;
 
+    if(argc < 2) {
+        Print("ERROR: I need a filename\n");
+        Exit(1);
+    }
+
     fd = Open(argv[1], O_READ);
     if(fd < 0) {
         Print("ERROR: unnable to open %s\n", argv[1]);

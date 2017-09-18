@@ -90,7 +90,6 @@ int ARP_Dispatch(struct Net_Device *device, struct Net_Buf *nBuf) {
     struct ARP_Packet packet;
 
     Net_Buf_Extract(nBuf, 0, &packet, sizeof(packet));
-    int rc = 0;
 
     TODO_P(PROJECT_ARP,
            "handle a received arp packet which may be a request issued by someone else or a response to our query.");
@@ -99,7 +98,7 @@ int ARP_Dispatch(struct Net_Device *device, struct Net_Buf *nBuf) {
 
 int ARP_Transmit(struct Net_Device *device, struct ARP_Packet *packet,
                  uchar_t * ethDestAddr) {
-    int paddingNeeded = sizeof(struct ARP_Packet) - ETH_MIN_DATA;
+    // unused int paddingNeeded = sizeof(struct ARP_Packet) - ETH_MIN_DATA;
     struct Net_Buf *nBuf = NULL;
     int rc = Net_Buf_Create(&nBuf);
     if(rc != 0)
@@ -137,7 +136,6 @@ static int ARP_Send_Request(struct Net_Device *device,
 
     rc = ARP_Transmit(device, packet, ethDestAddr);
 
-  fail:
     Free(packet);
     return rc;
 }
@@ -234,9 +232,9 @@ static int ARP_Table_Insert(ushort_t htype, ushort_t ptype,
     return 0;
 }
 
-static int ARP_Table_Delete(ushort_t htype, ushort_t ptype,
-                            const uchar_t
-                            protocolAddress[ARP_PROT_ADDR_SIZE]) {
+/* unused static */
+int ARP_Table_Delete(ushort_t htype, ushort_t ptype,
+                     const uchar_t protocolAddress[ARP_PROT_ADDR_SIZE]) {
     struct ARP_Table_Element *curr;
     int ret;
 
@@ -253,9 +251,12 @@ static int ARP_Table_Delete(ushort_t htype, ushort_t ptype,
     return ret;
 }
 
-static int ARP_Table_Cleanse(ushort_t htype, ushort_t ptype) {
+/* unused static */
+int ARP_Table_Cleanse(ushort_t htype, ushort_t ptype) {
     TODO_P(PROJECT_ARP,
            "Implement ARP_Table_Cleanse() to remove stale arp entries");
+    (void)htype;
+    (void)ptype;
     return 0;
 }
 

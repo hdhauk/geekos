@@ -17,8 +17,7 @@
 #include <fileio.h>
 #include <geekos/errno.h>
 
-int main(int argc, char **argv) {
-    int rc;
+int main() {
 
     while (1) ;
 

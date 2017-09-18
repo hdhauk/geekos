@@ -64,6 +64,7 @@ static bool Lock_Screen(void) {
     return false;
 }
 static void Unlock_Screen(bool iflag) {
+    (void)iflag;
 }
 
 /*
@@ -343,8 +344,9 @@ static void Put_Char_Imp(int c) {
                     break;
                 case 'f':
                 case 'H':
-                    if(s_cons.numArgs == 2)
+                    if(s_cons.numArgs == 2) {
                         Move_Cursor(Get_Arg(0) - 1, Get_Arg(1) - 1);
+                    }
                     break;
                 case 'J':
                     if(s_cons.numArgs == 1 && Get_Arg(0) == 2) {

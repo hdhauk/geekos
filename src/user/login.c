@@ -16,7 +16,7 @@
 
 char login[20], password[20];
 
-int main(int argc, char **argv) {
+int main() {
 
     while (1) {
 

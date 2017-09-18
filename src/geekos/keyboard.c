@@ -330,7 +330,7 @@ void Init_Keyboard(void) {
  * by keycode.
  */
 bool Read_Key(Keycode * keycode) {
-    bool result, iflag;
+    bool result;
 
     Spin_Lock(&s_kbdQueueLock);
     result = !Is_Queue_Empty();

@@ -36,7 +36,6 @@
 #include <geekos/alarm.h>
 #include <geekos/smp.h>
 
-static int Debug = 0;
 
 /* Called when signal handling is complete. */
 void Complete_Handler(struct Kernel_Thread *kthread,
@@ -94,7 +93,6 @@ void dump_stack(unsigned int *esp, unsigned int ofs) {
 
 void Setup_Frame(struct Kernel_Thread *kthread,
                  struct Interrupt_State *state) {
-    int i;
     KASSERT(kthread);
     KASSERT(state);
 

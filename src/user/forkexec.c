@@ -18,7 +18,7 @@
 #include <fileio.h>
 #include <geekos/errno.h>
 
-int main(int argc, char **argv) {
+int main() {
     int child_pid = Fork();
     int rc;
 

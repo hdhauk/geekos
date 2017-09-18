@@ -12,14 +12,15 @@
 
 #include <geekos/projects.h>
 
-static struct Routing_Table s_routingTable;
+/* Use a routing table; this declares it, but the attribute
+   asks the compiler not to warn about it being unused while
+   you develop other code */
+static struct Routing_Table s_routingTable __attribute__ ((unused));
 static struct Mutex s_routingTableMutex;
 
 
 void Init_Routing(void) {
     // Initialize the routing table with all local routes
-    struct IP_Device *ipDevice;
-    int rc;
 
     Mutex_Init(&s_routingTableMutex);
 

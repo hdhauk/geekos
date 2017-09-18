@@ -26,11 +26,15 @@ char bigbuf[2048];              /* spot in which to read data */
 
 /* invoked when sigpipe is delivered. */
 void sigpipe_handler(int signal) {
-    Print("GOOD: sigpiped the parent!\n");
-    sigpiped = 1;
+    if(signal == SIGPIPE) {
+        Print("GOOD: sigpiped the parent!\n");
+        sigpiped = 1;
+    } else {
+        Print("unexpected signal received!\n");
+    }
 }
 
-int main(int argc, char **argv) {
+int main() {
     int n = 0;
     int child_pid = 0;
     int i, rc;

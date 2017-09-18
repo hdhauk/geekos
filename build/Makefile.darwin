@@ -8,7 +8,7 @@ ifeq ($(TARGET_CC),)
 endif
 OPTIMIZE := -O2 
 GENERAL_OPTS := $(OPTIMIZE)  -Wall $(EXTRA_C_OPTS)
-CC_GENERAL_OPTS := $(GENERAL_OPTS)  -Wall -W -Wwrite-strings -Wno-unused
+CC_GENERAL_OPTS := $(GENERAL_OPTS)  -W -Wwrite-strings -Wno-unused-parameter -Wno-unused-function
 MEM := 64
 # QEMU := /Applications/Q.app/Contents/MacOS/i386-softmmu.app/Contents/MacOS/i386-softmmu -std-vga
 QEMU_BIN ?= /usr/local/bin/qemu-system-i386

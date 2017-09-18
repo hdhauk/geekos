@@ -25,7 +25,7 @@
  *
  *  THIS TEST SHOULD STALL WITH BLOCKING PIPE */
 
-int main(int argc, char **argv) {
+int main() {
     int i, j;
     int read_fd, write_fd;
     int read_bytes, written_bytes, pipe_retval;

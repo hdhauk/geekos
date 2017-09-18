@@ -17,20 +17,20 @@
 #include <sched.h>
 
 int main(int argc, char **argv) {
-    int i, ret, start;
+    int i, start;
 
     if(argc == 1) {
         Print("Usage %s [all1|split]\n", argv[0]);
         Exit(-1);
     } else if(!strcmp(argv[1], "all0")) {
-        ret = Spawn_Program("/c/affinity.exe", "affinity.exe core0", 1);
-        ret = Spawn_Program("/c/affinity.exe", "affinity.exe core0", 1);
+        Spawn_Program("/c/affinity.exe", "affinity.exe core0", 1);
+        Spawn_Program("/c/affinity.exe", "affinity.exe core0", 1);
     } else if(!strcmp(argv[1], "all1")) {
-        ret = Spawn_Program("/c/affinity.exe", "affinity.exe core1", 1);
-        ret = Spawn_Program("/c/affinity.exe", "affinity.exe core1", 1);
+        Spawn_Program("/c/affinity.exe", "affinity.exe core1", 1);
+        Spawn_Program("/c/affinity.exe", "affinity.exe core1", 1);
     } else if(!strcmp(argv[1], "split")) {
-        ret = Spawn_Program("/c/affinity.exe", "affinity.exe core1", 1);
-        ret = Spawn_Program("/c/affinity.exe", "affinity.exe core0", 1);
+        Spawn_Program("/c/affinity.exe", "affinity.exe core1", 1);
+        Spawn_Program("/c/affinity.exe", "affinity.exe core0", 1);
     } else if(!strcmp(argv[1], "core0")) {
         Set_Affinity(Get_PID(), 0);
         start = Get_Time_Of_Day();

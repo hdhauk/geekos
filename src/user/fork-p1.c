@@ -19,7 +19,7 @@
 
 int global = 0;
 
-int main(int argc, char **argv) {
+int main() {
     int n = 0;
     int child_pid = 0;
     Print("original\n");

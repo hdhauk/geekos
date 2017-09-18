@@ -16,8 +16,8 @@
 
 int TCP_Dispatch(struct IP_Device *device, IP_Address * destAddress,
                  IP_Address * srcAddress, struct Net_Buf *nBuf) {
-    struct TCP_Header header;
-    int rc;
+    TODO_P(PROJECT_TCP, "Find and remove the tcp header");
+
     TODO_P(PROJECT_TCP, "dispatch this packet's contents to socket");
 
     return 0;

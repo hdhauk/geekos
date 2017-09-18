@@ -20,10 +20,9 @@
 
 int global = 0;
 
-int main(int argc, char **argv) {
+int main() {
     int n = 0;
     int child_pid = 0;
-    int i;
     int read_fd, write_fd;
     int read_bytes, written_bytes, pipe_retval;
     char buf[256];

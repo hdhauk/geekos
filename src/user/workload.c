@@ -56,7 +56,7 @@ int main(int argc, char **argv) {
     int start;
     int elapsed;
     int scr_sem;                /* sid of screen semaphore */
-    int id1, id2, id3;          /* ID of child process */
+    int id1, id2;               /* ID of child process */
 
     if(argc == 2) {
         if(!strcmp(argv[1], "rr")) {

@@ -11,6 +11,6 @@ void *Malloc(unsigned long n __attribute__ ((unused))) {
     TODO_P(PROJECT_MALLOC, "Malloc");
 }
 
-void Free(void *n) {
+void Free(void *p) {
     TODO_P(PROJECT_MALLOC, "free!");
 }

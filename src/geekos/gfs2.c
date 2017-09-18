@@ -111,7 +111,7 @@ static int GFS2_Read_Entry(struct File *dir, struct VFS_Dir_Entry *entry) {
 }
 
 /*static*/ struct File_Ops s_gfs2DirOps = {
-    &GFS2_FStat,
+    &GFS2_FStat_Directory,
     0,                          /* Read */
     0,                          /* Write */
     0,                          /* Seek */

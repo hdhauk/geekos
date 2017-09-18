@@ -340,14 +340,11 @@ void Unlock_Page(struct Page *page) {
  */
 static void *Alloc_Or_Reclaim_Page(pte_t * entry, ulong_t vaddr,
                                    bool pinnedPage) {
-    bool iflag;
-    bool mappedPage;
     void *paddr;
     struct Page *page;
 
     KASSERT(Interrupts_Enabled());
 
-  start_over:
     /* Alloc_Page_Frame should be called before the atomics,
        since it acts over a locked list. */
     paddr = Alloc_Page_Frame();
@@ -358,8 +355,6 @@ static void *Alloc_Or_Reclaim_Page(pte_t * entry, ulong_t vaddr,
         page = Get_Page((ulong_t) paddr);
         KASSERT((page->flags & PAGE_PAGEABLE) == 0);
     } else {
-        int pagefileIndex = 0;
-
         /* Select a page to steal from another process */
         Debug("About to hunt for a page to page out\n");
         page = Find_Page_To_Page_Out();
@@ -404,7 +399,6 @@ static void *Alloc_Or_Reclaim_Page(pte_t * entry, ulong_t vaddr,
 
     }
 
-  done:
     return paddr;
 }
 

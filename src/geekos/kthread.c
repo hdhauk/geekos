@@ -372,6 +372,12 @@ static void Setup_Kernel_Thread(struct Kernel_Thread *kthread,
 
 /*
  * Set up the a user mode thread.
+ * 
+ * This assumes exclusive access to kthread->esp; you may call it
+ * on a process being created, but not on a running process unless
+ * you can ensure it is not scheduled or preempted, which would overwrite
+ * esp.  That is, if called from within a running process, disable 
+ * interrupts so that the process is not preempted.
  */
 /*static*/ void Setup_User_Thread(
                                      struct Kernel_Thread *kthread,
@@ -584,11 +590,8 @@ void Init_Scheduler(unsigned int cpuID, void *stack) {
          * Create the reaper thread.
          */
         /*Print("starting reaper thread\n"); */
-        struct Kernel_Thread *reaper;
-
-        reaper =
-            Start_Kernel_Thread(Reaper, 0, PRIORITY_NORMAL, true,
-                                "{Reaper}");
+        // struct Kernel_Thread *reaper = 
+        Start_Kernel_Thread(Reaper, 0, PRIORITY_NORMAL, true, "{Reaper}");
     }
 }
 
