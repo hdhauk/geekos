@@ -423,7 +423,7 @@ submission.zip: $(wildcard ../src/geekos/*.c) $(wildcard ../include/geekos/*.h)
 	cd .. && zip -r build/submission.zip src/*/* include/*/* build/Makefile* scripts
 
 ../submit.jar:
-	cd .. && curl -O http://www.cs.umd.edu/class/fall2010/cmsc330/p4/submit.jar
+	cd .. && curl -O https://submit.cs.umd.edu/spring2018/resources/submit.jar
 
 submit: ../submit.jar ../.submit
 	make clean
