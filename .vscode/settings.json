@@ -1,0 +1,8 @@
+{
+    "cSpell.enabled": false,
+    "files.associations": {
+        "malloc.h": "c",
+        "projects.h": "c",
+        "conio.h": "c"
+    }
+}

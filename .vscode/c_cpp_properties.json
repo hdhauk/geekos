@@ -1,0 +1,28 @@
+{
+    "configurations": [
+        {
+            "name": "null",
+            "includePath": [
+                "${workspaceRoot}/include",
+                "${workspaceRoot}/src",
+                "/usr/include",
+                "/System/Library/Frameworks/Kernel.framework/Versions/A/Headers",
+                "${workspaceRoot}/include/libc"
+            ],
+            "defines": [],
+            "browse": {
+                "path": [
+                    "${workspaceRoot}"
+                ],
+                "limitSymbolsToIncludedHeaders": true,
+                "databaseFilename": ""
+            },
+            "intelliSenseMode": "clang-x64",
+            "macFrameworkPath": [
+                "/System/Library/Frameworks",
+                "/Library/Frameworks"
+            ]
+        }
+    ],
+    "version": 3
+}
