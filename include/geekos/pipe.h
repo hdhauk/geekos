@@ -15,6 +15,21 @@
 extern const struct File_Ops Pipe_Read_Ops;
 extern const struct File_Ops Pipe_Write_Ops;
 
+/*
+ * Pipe object contains:
+ * readers - the number of readers
+ * writers - the number of writers
+ * buffer - the pointer to data buffer.
+ */
+struct Pipe {
+    int readers;
+    int writers;
+    ulong_t read_idx;
+    ulong_t write_idx;
+    void *buffer;
+    ulong_t buffer_bytes;
+};
+
 int Pipe_Create(struct File **read_file, struct File **write_file);
 int Pipe_Read(struct File *f, void *buf, ulong_t numBytes);
 int Pipe_Write(struct File *f, void *buf, ulong_t numBytes);

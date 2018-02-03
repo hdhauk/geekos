@@ -883,8 +883,47 @@ static int Sys_PlaySoundFile(struct Interrupt_State *state) {
  *   state->ecx - address of file descriptor for the write side
  */
 static int Sys_Pipe(struct Interrupt_State *state) {
-    TODO_P(PROJECT_PIPE, "Pipe system call");
-    return EUNSUPPORTED;
+
+    // allocate read side file descriptor.
+    int fd = next_descriptor();
+    if (fd < 0) {
+        return fd;
+    }
+    int read_fd = fd;
+    int ok = Copy_To_User(state->ebx, &read_fd, sizeof(int));
+    if (!ok) {
+        return EINVALID;
+    }
+
+    // allocate write side file descriptor.
+    // cannot use next_descriptor() as read_fd is 0 atm.
+    for (fd = 0; fd < USER_MAX_FILES; fd++) {
+        bool free_fd = CURRENT_THREAD->userContext->file_descriptor_table[fd] == 0;
+        if (free_fd && (fd != read_fd)) {
+            break;
+        }
+    }
+    if (fd == USER_MAX_FILES) {
+        return EMFILE;
+    }
+    int write_fd = fd;
+    ok = Copy_To_User(state->ecx, &write_fd, sizeof(int));
+    if (!ok) {
+        return EINVALID;
+    }
+    KASSERT(read_fd != write_fd);
+
+    // create pipe
+    struct File *read_file;
+    struct File *write_file;
+    int err = Pipe_Create(&read_file, &write_file);
+    if (err < 0) {
+        return err;
+    }
+   CURRENT_THREAD->userContext->file_descriptor_table[read_fd] = read_file;
+   CURRENT_THREAD->userContext->file_descriptor_table[write_fd] = write_file;
+   
+   return 0;
 }
 
 
