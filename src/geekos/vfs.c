@@ -392,6 +392,11 @@ int Mount(const char *devname, const char *pathPrefix, const char *fstype) {
 int Open(const char *path, int mode, struct File **pFile) {
     int rc = Do_Open(path, mode, pFile, &Do_Open_File);
     /*if (rc != 0) { Print("File open failed with code %d\n", rc); } */
+
+    Mutex_Lock(&s_vfsLock);
+    (*pFile)->refcount = 1;
+    Mutex_Unlock(&s_vfsLock);
+
     return rc;
 }
 
@@ -408,10 +413,14 @@ int Close(struct File *file) {
 
     KASSERT(file->ops->Close != 0);     /* All filesystems must implement Close(). */
 
-    TODO_P(PROJECT_FORK, "Manage reference count");
+    // TODO_P(PROJECT_FORK, "Manage reference count");
+    Mutex_Lock(&s_vfsLock);
+    file->refcount--;
+    Mutex_Unlock(&s_vfsLock);
+
 
     rc = file->ops->Close(file);
-    if(rc == 0)
+    if(rc == 0 && file->refcount == 0)
         Free(file);
     return rc;
 }

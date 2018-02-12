@@ -28,10 +28,6 @@ int Pipe_Create(struct File **read_file, struct File **write_file) {
         return ENOMEM; 
     }
 
-    pipe->mu = (struct Mutex *)Malloc(sizeof(struct Mutex));
-    Mutex_Init(pipe->mu);
-    Mutex_Lock(pipe->mu);
-
     // Initialize pipe struct as a 1-to-1 pipe.
     pipe->readers = 1;
     pipe->writers = 1;
@@ -52,7 +48,8 @@ int Pipe_Create(struct File **read_file, struct File **write_file) {
         return ENOMEM;
     }
 
-    Mutex_Unlock(pipe->mu);
+    (*read_file)->refcount = 1;
+    (*write_file)->refcount = 1;
 
     return 0;
 
@@ -60,17 +57,14 @@ int Pipe_Create(struct File **read_file, struct File **write_file) {
 
 int Pipe_Read(struct File *f, void *buf, ulong_t numBytes) {
     struct Pipe *pipe = (struct Pipe *)f->fsData;
-    Mutex_Lock(pipe->mu);
 
     bool writers_present = pipe->writers > 0;
     bool no_data = pipe->buffer_bytes == 0;
     if (writers_present && no_data) {
-        Mutex_Unlock(pipe->mu);
         return EWOULDBLOCK;
     }
     
     if (no_data) {
-        Mutex_Unlock(pipe->mu);
         return 0;
     }
 
@@ -86,17 +80,14 @@ int Pipe_Read(struct File *f, void *buf, ulong_t numBytes) {
     pipe->buffer_bytes -= i;
     pipe->read_idx = read_pos;
 
-    Mutex_Unlock(pipe->mu);
     return (int)i;
 }
 
 int Pipe_Write(struct File *f, void *buf, ulong_t numBytes) {
     struct Pipe *pipe = (struct Pipe *)f->fsData;
-    Mutex_Lock(pipe->mu);
 
     // empty pipe.
     if (pipe->readers == 0) {
-        Mutex_Unlock(pipe->mu);
         return EPIPE;
     }
 
@@ -113,25 +104,24 @@ int Pipe_Write(struct File *f, void *buf, ulong_t numBytes) {
     pipe->buffer_bytes += i;
     pipe->write_idx = write_pos;
 
-    Mutex_Unlock(pipe->mu);
     return (int)i;
 }
 
 int Pipe_Close(struct File *f) {
-    struct Pipe *pipe = (struct Pipe *) f->fsData;
-    Mutex_Lock(pipe->mu);
+    struct Pipe *pipe = (struct Pipe *)f->fsData;
 
+    if (f->refcount == 0){
     // determine what end we're on
-    bool is_reader = f->ops->Read != NULL;
-    if (is_reader) {
-        pipe->readers--;
-    }
-    bool is_writer = f->ops->Write != NULL;
-    if (is_writer) {
-        pipe->writers--;
+        bool is_reader = f->ops->Read != NULL;
+        if (is_reader) {
+            pipe->readers--;
+        }
+        bool is_writer = f->ops->Write != NULL;
+        if (is_writer) {
+            pipe->writers--;
+        }
     }
 
-    Mutex_Unlock(pipe->mu);
     // close pipe if no readers
     if (pipe->readers == 0) {
         Free(pipe->buffer);
