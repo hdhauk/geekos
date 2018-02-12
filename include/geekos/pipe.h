@@ -11,6 +11,7 @@
  * enrolled in similar operating systems courses the University of Maryland's CMSC412 course.
  */
 #include <geekos/vfs.h>
+#include <geekos/synch.h>
 
 extern const struct File_Ops Pipe_Read_Ops;
 extern const struct File_Ops Pipe_Write_Ops;
@@ -28,6 +29,7 @@ struct Pipe {
     ulong_t write_idx;
     void *buffer;
     ulong_t buffer_bytes;
+    struct Mutex *mu;
 };
 
 int Pipe_Create(struct File **read_file, struct File **write_file);

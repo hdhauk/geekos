@@ -21,3 +21,7 @@ build/.gdbinit
 .idea/
 CMakeLists.txt
 cmake-build-debug/
+launch.json
+.submit
+.submitUser
+submit.jar
