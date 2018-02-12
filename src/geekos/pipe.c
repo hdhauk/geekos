@@ -39,7 +39,7 @@ int Pipe_Create(struct File **read_file, struct File **write_file) {
     pipe->write_idx = 0;
 
     // Allocate space for buffer.
-    pipe->buffer = (void *)Malloc(PIPE_MAX_SIZE);
+    pipe->buffer = Malloc(PIPE_MAX_SIZE);
     if (pipe->buffer == NULL) {
         return ENOMEM;
     }
@@ -48,7 +48,7 @@ int Pipe_Create(struct File **read_file, struct File **write_file) {
     // Allocate files.
     *read_file = Allocate_File(&Pipe_Read_Ops, 0 ,0, pipe, 0, NULL);
     *write_file = Allocate_File(&Pipe_Write_Ops, 0, 0, pipe, 0, NULL);
-    if (read_file == NULL || write_file == NULL) {
+    if (*read_file == NULL || *write_file == NULL) {
         return ENOMEM;
     }
 
@@ -87,7 +87,7 @@ int Pipe_Read(struct File *f, void *buf, ulong_t numBytes) {
     pipe->read_idx = read_pos;
 
     Mutex_Unlock(pipe->mu);
-    return i;
+    return (int)i;
 }
 
 int Pipe_Write(struct File *f, void *buf, ulong_t numBytes) {
@@ -114,7 +114,7 @@ int Pipe_Write(struct File *f, void *buf, ulong_t numBytes) {
     pipe->write_idx = write_pos;
 
     Mutex_Unlock(pipe->mu);
-    return i;
+    return (int)i;
 }
 
 int Pipe_Close(struct File *f) {
