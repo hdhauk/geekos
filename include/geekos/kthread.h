@@ -129,8 +129,8 @@ struct Kernel_Thread *Start_Kernel_Thread(Thread_Start_Func startFunc,
                                           int priority,
                                           bool detached,
                                           const char *name);
-struct Kernel_Thread *Start_User_Thread(struct User_Context *userContext,
-                                        bool detached);
+struct Kernel_Thread *Start_User_Thread(struct User_Context *userContext, bool detached);
+void Setup_User_Thread(struct Kernel_Thread *kthread, struct User_Context *userContext);
 void Make_Runnable(struct Kernel_Thread *kthread);
 void Make_Runnable_Atomic(struct Kernel_Thread *kthread);
 int Is_Thread_On_Run_Queue(const struct Kernel_Thread *thread);

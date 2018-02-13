@@ -34,7 +34,6 @@
 #include <geekos/mem.h>
 #include <geekos/smp.h>
 #include <geekos/gdt.h>
-#include <geekos/kthread.h>
 
 extern Spin_Lock_t kthreadLock;
 
@@ -1006,8 +1005,65 @@ static int Sys_Fork(struct Interrupt_State *state) {
  * Returns: doesn't if successful, error code (< 0) otherwise
  */
 static int Sys_Execl(struct Interrupt_State *state) {
-    TODO_P(PROJECT_FORK, "Execl system call");
-    return EUNSUPPORTED;
+
+    // Get program path.
+    char *prog_path;
+    int err = get_path_from_registers(state->ebx, state->ecx, &prog_path);
+    if (err != 0){
+        return err;
+    }
+
+    // Get command string.
+    char *cmd_str;
+    err = get_path_from_registers(state->edx, state->esi, &cmd_str);
+    if (err != 0){
+        return err;
+    }
+
+    // Free old context.
+    Print("usr_ctx->refCount = %d\n", CURRENT_THREAD->userContext->refCount);
+    CURRENT_THREAD->userContext->refCount = 0;
+    Free(CURRENT_THREAD->userContext);
+
+    // Read program executable.
+    void *exec_data;
+    ulong_t exec_data_size;
+    err = Read_Fully(prog_path, &exec_data, &exec_data_size);
+    if (err != 0){
+        Free(exec_data);
+        return err;
+    }
+
+    // Parse ELF headers.
+    struct Exe_Format exec_fmt;
+    err = Parse_ELF_Executable(exec_data, exec_data_size, &exec_fmt);
+    if (err != 0){
+        Free(exec_data);
+        return err;
+    }
+
+    // Load program executable.
+    struct User_Context *new_ctx = (struct User_Context *)Malloc(sizeof(struct User_Context));
+    err = Load_User_Program((char *)exec_data, exec_data_size, &exec_fmt, cmd_str, &new_ctx);
+    if (err != 0){
+        Free(exec_data);
+        return err;
+    }
+
+    // Update context name.
+    strncpy(new_ctx->name, prog_path, MAX_PROC_NAME_SZB);
+    new_ctx->name[MAX_PROC_NAME_SZB-1] = '\0';
+
+    // Cleanup.
+    Free(exec_data);
+
+    // Clear stack.
+    CURRENT_THREAD->esp = (ulong_t)CURRENT_THREAD->stackPage + PAGE_SIZE;
+
+    // Start thread.
+    Setup_User_Thread(CURRENT_THREAD, new_ctx);
+
+    return 0;
 }
 
 /* 
