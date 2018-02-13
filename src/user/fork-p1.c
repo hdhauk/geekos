@@ -27,14 +27,11 @@ int main() {
     n++;
     global ++;
     if(child_pid > 0) {
-        Print("parent n=%d, global=%d, child_pid=%d, my_pid=%d\n", n,
-              global, child_pid, Get_PID());
+        Print("parent n=%d, global=%d, child_pid=%d, my_pid=%d\n", n, global, child_pid, Get_PID());
     } else if(child_pid == 0) {
-        Print("child n=%d, global=%d, child_pid=%d, my_pid=%d\n", n,
-              global, child_pid, Get_PID());
+        Print("child n=%d, global=%d, child_pid=%d, my_pid=%d\n", n, global, child_pid, Get_PID());
     } else {
-        Print("fork failed: %s (%d)\n", Get_Error_String(child_pid),
-              child_pid);
+        Print("fork failed: %s (%d)\n", Get_Error_String(child_pid), child_pid);
     }
 
     return 0;
