@@ -33,6 +33,8 @@
 #include <geekos/pipe.h>
 #include <geekos/mem.h>
 #include <geekos/smp.h>
+#include <geekos/gdt.h>
+#include <geekos/kthread.h>
 
 extern Spin_Lock_t kthreadLock;
 
@@ -929,8 +931,69 @@ static int Sys_Pipe(struct Interrupt_State *state) {
 
 
 static int Sys_Fork(struct Interrupt_State *state) {
-    TODO_P(PROJECT_FORK, "Fork system call");
-    return EUNSUPPORTED;
+    struct User_Context *parent_ctx = CURRENT_THREAD->userContext;
+    struct User_Context *child_ctx = NULL;
+
+    // Allocate memory for child.
+    child_ctx = (struct User_Context *)Malloc(sizeof(struct User_Context));
+    child_ctx->memory = Malloc(parent_ctx->size);
+    if (child_ctx == 0 || child_ctx->memory == 0){
+        return ENOMEM;
+    }
+
+    // Copy memory from parent to child.
+    memcpy(child_ctx->memory, parent_ctx->memory, parent_ctx->size);
+    child_ctx->size = parent_ctx->size;
+
+    // Allocate/init local descriptor table in global descriptor table.
+    child_ctx->ldtDescriptor = Allocate_Segment_Descriptor();
+    if (child_ctx->ldtDescriptor == 0) {
+        return ENOMEM;
+    }
+    Init_LDT_Descriptor(child_ctx->ldtDescriptor, child_ctx->ldt, NUM_USER_LDT_ENTRIES);
+    int gdt_index = Get_Descriptor_Index(child_ctx->ldtDescriptor);
+    child_ctx->ldtSelector = Selector(KERNEL_PRIVILEGE, true, gdt_index);
+
+    // Init code/data segments in LDT.
+    ulong_t num_code_pages = parent_ctx->size / PAGE_SIZE;
+    Init_Code_Segment_Descriptor(&child_ctx->ldt[0], (ulong_t)child_ctx->memory, num_code_pages, USER_PRIVILEGE);
+    Init_Data_Segment_Descriptor(&child_ctx->ldt[1], (ulong_t)child_ctx->memory, num_code_pages, USER_PRIVILEGE);
+    child_ctx->csSelector = Selector(USER_PRIVILEGE, false, 0);
+    child_ctx->dsSelector = Selector(USER_PRIVILEGE, false, 1);
+
+    child_ctx->refCount = 0;
+
+    // Copy over file descriptors.
+    memcpy(child_ctx->file_descriptor_table, parent_ctx->file_descriptor_table, USER_MAX_FILES * sizeof(struct File *));
+    int i;
+    for (i = 0; i < USER_MAX_FILES; i++){
+        // TODO: Protect this operation. Embed mutex in file-object?
+        child_ctx->file_descriptor_table[i]->refcount++;
+    }
+
+    struct Kernel_Thread *parent_thread = CURRENT_THREAD;
+    struct Kernel_Thread *child_thread = NULL;
+
+    // Create thread for child.
+    child_thread = Start_User_Thread(child_ctx, false);
+    if (child_thread == NULL){
+        return ENOMEM;
+    }
+
+
+    // Copy kernel stack.
+    ulong_t stack_size = ((ulong_t)child_thread->stackPage + PAGE_SIZE - child_thread->esp)/4;
+    ulong_t *src_stack = (ulong_t *)parent_thread->stackPage + PAGE_SIZE/4 - stack_size;
+    ulong_t *dst_stack = (ulong_t *)child_thread->stackPage + PAGE_SIZE/4 -stack_size;
+    ulong_t j;
+    for (j = 0; j < stack_size; j++){
+        dst_stack[j] = src_stack[j];
+    }
+
+    // Set return value for child.
+    dst_stack[10] = 0;
+
+    return child_thread->pid;
 }
 
 /* 

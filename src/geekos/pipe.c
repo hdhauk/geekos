@@ -86,7 +86,7 @@ int Pipe_Read(struct File *f, void *buf, ulong_t numBytes) {
 int Pipe_Write(struct File *f, void *buf, ulong_t numBytes) {
     struct Pipe *pipe = (struct Pipe *)f->fsData;
 
-    // empty pipe.
+    // No readers.
     if (pipe->readers == 0) {
         return EPIPE;
     }
@@ -123,7 +123,7 @@ int Pipe_Close(struct File *f) {
     }
 
     // close pipe if no readers
-    if (pipe->readers == 0) {
+    if (pipe->readers == 0 && pipe->writers == 0) {
         Free(pipe->buffer);
         Free(pipe);
     }
