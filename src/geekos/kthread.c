@@ -379,9 +379,7 @@ static void Setup_Kernel_Thread(struct Kernel_Thread *kthread,
  * esp.  That is, if called from within a running process, disable 
  * interrupts so that the process is not preempted.
  */
-/*static*/ void Setup_User_Thread(
-                                     struct Kernel_Thread *kthread,
-                                     struct User_Context *userContext) {
+/*static*/ void Setup_User_Thread(struct Kernel_Thread *kthread, struct User_Context *userContext) {
     extern int userDebug;
 
     /*
@@ -632,10 +630,8 @@ struct Kernel_Thread *Start_Kernel_Thread(Thread_Start_Func startFunc,
  * Start a user-mode thread (i.e., a process), using given user context.
  * Returns pointer to the new thread if successful, null otherwise.
  */
-struct Kernel_Thread *Start_User_Thread(struct User_Context *userContext,
-                                        bool detached) {
-    struct Kernel_Thread *kthread =
-        Create_Thread(PRIORITY_USER, detached);
+struct Kernel_Thread *Start_User_Thread(struct User_Context *userContext, bool detached) {
+    struct Kernel_Thread *kthread = Create_Thread(PRIORITY_USER, detached);
     if(kthread != 0) {
         /* Set up the thread, and put it on the run queue */
         Setup_User_Thread(kthread, userContext);
