@@ -425,6 +425,24 @@ int Close(struct File *file) {
     return rc;
 }
 
+void IncrementRefCount(struct File *file){
+    Mutex_Lock(&s_vfsLock);
+    file->refcount++;
+    Mutex_Unlock(&s_vfsLock);
+}
+
+void DecrementRefCount(struct File *file){
+    Mutex_Lock(&s_vfsLock);
+    file->refcount++;
+    Mutex_Unlock(&s_vfsLock);
+}
+
+void SetRefCount(struct File *file, int c){
+    Mutex_Lock(&s_vfsLock);
+    file->refcount = c;
+    Mutex_Unlock(&s_vfsLock);
+}
+
 /*
  * Get metadata for file specified by given path.
  * Params:

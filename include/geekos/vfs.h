@@ -101,6 +101,7 @@ struct File {
     struct Mount_Point *mountPoint;     /* Mounted filesystem file is part of. */
 
     int refcount;
+    struct Mutex *mu;
 };
 
 /* Operations that can be performed on a File. */
@@ -142,6 +143,10 @@ int Open(const char *path, int mode, struct File **pFile);
 int Close(struct File *file);
 int Stat(const char *path, struct VFS_File_Stat *stat);
 int Sync(void);
+
+void IncrementRefCount(struct File *file);
+void DecrementRefCount(struct File *file);
+void SetRefCount(struct File *file, int c);
 
 /* File operations. */
 struct File *Allocate_File(const struct File_Ops *ops, int filePos,

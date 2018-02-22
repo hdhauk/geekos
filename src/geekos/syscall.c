@@ -933,10 +933,12 @@ static int Sys_Fork(struct Interrupt_State *state) {
     struct User_Context *parent_ctx = CURRENT_THREAD->userContext;
     struct User_Context *child_ctx = NULL;
 
+    Print("parent_ctx->refCount = %d\n", parent_ctx->refCount);
+
     // Allocate memory for child.
     child_ctx = (struct User_Context *)Malloc(sizeof(struct User_Context));
     child_ctx->memory = Malloc(parent_ctx->size);
-    if (child_ctx == 0 || child_ctx->memory == 0){
+    if (child_ctx == NULL || child_ctx->memory == 0){
         return ENOMEM;
     }
 
@@ -966,8 +968,7 @@ static int Sys_Fork(struct Interrupt_State *state) {
     memcpy(child_ctx->file_descriptor_table, parent_ctx->file_descriptor_table, USER_MAX_FILES * sizeof(struct File *));
     int i;
     for (i = 0; i < USER_MAX_FILES; i++){
-        // TODO: Protect this operation. Embed mutex in file-object?
-        child_ctx->file_descriptor_table[i]->refcount++;
+        IncrementRefCount(child_ctx->file_descriptor_table[i]);
     }
 
     struct Kernel_Thread *parent_thread = CURRENT_THREAD;
@@ -990,7 +991,9 @@ static int Sys_Fork(struct Interrupt_State *state) {
     }
 
     // Set return value for child.
-    dst_stack[10] = 0;
+    dst_stack[10] = 0; // eax
+
+    parent_ctx->refCount++;
 
     return child_thread->pid;
 }
@@ -1010,6 +1013,7 @@ static int Sys_Execl(struct Interrupt_State *state) {
     char *prog_path;
     int err = get_path_from_registers(state->ebx, state->ecx, &prog_path);
     if (err != 0){
+        Print("Failed to get program\n");
         return err;
     }
 
@@ -1017,13 +1021,10 @@ static int Sys_Execl(struct Interrupt_State *state) {
     char *cmd_str;
     err = get_path_from_registers(state->edx, state->esi, &cmd_str);
     if (err != 0){
+        Print("Failed to get cmd string\n");
         return err;
     }
 
-    // Free old context.
-    Print("usr_ctx->refCount = %d\n", CURRENT_THREAD->userContext->refCount);
-    CURRENT_THREAD->userContext->refCount = 0;
-    Free(CURRENT_THREAD->userContext);
 
     // Read program executable.
     void *exec_data;
@@ -1031,6 +1032,7 @@ static int Sys_Execl(struct Interrupt_State *state) {
     err = Read_Fully(prog_path, &exec_data, &exec_data_size);
     if (err != 0){
         Free(exec_data);
+        Print("Failed to read program executable\n");
         return err;
     }
 
@@ -1039,6 +1041,7 @@ static int Sys_Execl(struct Interrupt_State *state) {
     err = Parse_ELF_Executable(exec_data, exec_data_size, &exec_fmt);
     if (err != 0){
         Free(exec_data);
+        Print("Failed to parse  ELF headers\n");
         return err;
     }
 
@@ -1047,6 +1050,7 @@ static int Sys_Execl(struct Interrupt_State *state) {
     err = Load_User_Program((char *)exec_data, exec_data_size, &exec_fmt, cmd_str, &new_ctx);
     if (err != 0){
         Free(exec_data);
+        Print("Failed to load executable program\n");
         return err;
     }
 
@@ -1056,12 +1060,20 @@ static int Sys_Execl(struct Interrupt_State *state) {
 
     // Cleanup.
     Free(exec_data);
+    Free(prog_path);
+    Free(cmd_str);
 
     // Clear stack.
     CURRENT_THREAD->esp = (ulong_t)CURRENT_THREAD->stackPage + PAGE_SIZE;
 
+
+    // Free old context.
+    CURRENT_THREAD->userContext->refCount = 0;
+    Destroy_User_Context(CURRENT_THREAD->userContext);
+
     // Start thread.
     Setup_User_Thread(CURRENT_THREAD, new_ctx);
+
 
     return 0;
 }

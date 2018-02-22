@@ -64,10 +64,14 @@ extern struct User_Context *Create_User_Context(ulong_t size) {
     if(context != 0) {
         memset(context, 0, sizeof(struct User_Context));
         context->memory = Malloc(size);
+        if (context->memory == 0){
+            Print("failed while allocating context->memory of size %d\n",(int)size);
+        }
     }
 
-    if(context == 0 || context->memory == 0)
+    if(context == 0 || context->memory == 0){
         goto fail;
+    }
 
     /*
      * Fill user memory with zeroes;
@@ -138,7 +142,7 @@ bool Validate_User_Memory(struct User_Context * userContext,
  * ---------------------------------------------------------------------- */
 
 /*
- * Destroy a User_Context object, including all memory
+ * DestrDestroy a User_Context object, including all memory
  * and other resources allocated within it.
  */
 void Destroy_User_Context(struct User_Context *userContext) {
@@ -203,8 +207,10 @@ int Load_User_Program(char *exeFileData, ulong_t exeFileLength
 
     /* Create User_Context */
     userContext = Create_User_Context(size);
-    if(userContext == 0)
+    if(userContext == 0){
+        Print("failed to create user context\n");
         return -1;
+    }
 
     /* Load segment data into memory */
     for(i = 0; i < exeFormat->numSegments; ++i) {
@@ -292,6 +298,9 @@ void Switch_To_Address_Space(struct User_Context *userContext) {
     /* Eager check to ensure that the new address space
        has either memory (userseg) or a page directory 
        (uservm) and is not likely to abort */
+    if (!(userContext->memory || userContext->pageDir)){
+        Print("userContext->memory = %p\nusercontext->pageDir = %p\n", userContext->memory, userContext->pageDir);
+    }
     KASSERT(userContext->memory || userContext->pageDir);
 
     /* Switch to the LDT of the new user context */

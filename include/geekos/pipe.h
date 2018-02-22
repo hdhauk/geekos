@@ -28,6 +28,7 @@ struct Pipe {
     ulong_t write_idx;
     void *buffer;
     ulong_t buffer_bytes;
+    struct Mutex * mu;
 };
 
 int Pipe_Create(struct File **read_file, struct File **write_file);

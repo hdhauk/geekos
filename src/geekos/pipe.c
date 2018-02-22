@@ -28,6 +28,10 @@ int Pipe_Create(struct File **read_file, struct File **write_file) {
         return ENOMEM; 
     }
 
+    // Create mutex.
+    pipe->mu = (struct Mutex *)Malloc(sizeof(struct Mutex));
+    Mutex_Init(pipe->mu);
+
     // Initialize pipe struct as a 1-to-1 pipe.
     pipe->readers = 1;
     pipe->writers = 1;
@@ -48,8 +52,9 @@ int Pipe_Create(struct File **read_file, struct File **write_file) {
         return ENOMEM;
     }
 
-    (*read_file)->refcount = 1;
-    (*write_file)->refcount = 1;
+    SetRefCount((*read_file), 1);
+    SetRefCount((*write_file), 1);
+    //(*write_file)->refcount = 1;
 
     return 0;
 
@@ -58,13 +63,17 @@ int Pipe_Create(struct File **read_file, struct File **write_file) {
 int Pipe_Read(struct File *f, void *buf, ulong_t numBytes) {
     struct Pipe *pipe = (struct Pipe *)f->fsData;
 
+    Mutex_Lock(pipe->mu);
+
     bool writers_present = pipe->writers > 0;
     bool no_data = pipe->buffer_bytes == 0;
     if (writers_present && no_data) {
+        Mutex_Unlock(pipe->mu);
         return EWOULDBLOCK;
     }
     
     if (no_data) {
+        Mutex_Unlock(pipe->mu);
         return 0;
     }
 
@@ -80,14 +89,17 @@ int Pipe_Read(struct File *f, void *buf, ulong_t numBytes) {
     pipe->buffer_bytes -= i;
     pipe->read_idx = read_pos;
 
+    Mutex_Unlock(pipe->mu);
     return (int)i;
 }
 
 int Pipe_Write(struct File *f, void *buf, ulong_t numBytes) {
     struct Pipe *pipe = (struct Pipe *)f->fsData;
+    Mutex_Lock(pipe->mu);
 
     // No readers.
     if (pipe->readers == 0) {
+        Mutex_Unlock(pipe->mu);
         return EPIPE;
     }
 
@@ -104,11 +116,13 @@ int Pipe_Write(struct File *f, void *buf, ulong_t numBytes) {
     pipe->buffer_bytes += i;
     pipe->write_idx = write_pos;
 
+    Mutex_Unlock(pipe->mu);
     return (int)i;
 }
 
 int Pipe_Close(struct File *f) {
     struct Pipe *pipe = (struct Pipe *)f->fsData;
+    Mutex_Lock(pipe->mu);
 
     if (f->refcount == 0){
     // determine what end we're on
@@ -124,8 +138,13 @@ int Pipe_Close(struct File *f) {
 
     // close pipe if no readers
     if (pipe->readers == 0 && pipe->writers == 0) {
+        Mutex_Unlock(pipe->mu);
+        Free(pipe->mu);
         Free(pipe->buffer);
         Free(pipe);
+        return 0;
     }
+
+    Mutex_Unlock(pipe->mu);
     return 0;
 }
