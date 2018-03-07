@@ -851,7 +851,6 @@ static int Sys_Write(struct Interrupt_State *state) {
         {
             Print("PID %d attempted to write to pipe without readers. Sending SIGPIPE\n", Get_Current()->pid);
             Send_Signal(Get_Current(), SIGPIPE);
-            Print("Sys_Write > state->eax = %d\n", state->eax);
         }
         KASSERT(bytes_written != -1);
         return bytes_written;
