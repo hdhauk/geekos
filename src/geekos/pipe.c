@@ -101,10 +101,6 @@ int Pipe_Write(struct File *f, void *buf, ulong_t numBytes) {
     // No readers.
     if (pipe->readers == 0) {
         Mutex_Unlock(pipe->mu);
-        Print("PID %d attempted to write to pipe without readers. Sending SIGPIPE\n",
-        Get_Current()->pid);
-        Send_Signal(Get_Current(), SIGPIPE);
-        Print("Returning EPIPE to PID %d after having sent SIGPIPE\n", Get_Current()->pid);
         return EPIPE;
     }
 

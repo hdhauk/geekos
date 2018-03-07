@@ -438,8 +438,8 @@ static int Sys_RegDeliver(struct Interrupt_State *state) {
 
     struct Kernel_Thread* kthread = Get_Current();
     kthread->userContext->return_signal	= (signal_handler)state->ebx;
-    kthread->userContext->default_handler = Signal_Default;
-    kthread->userContext->ignore_handler = Signal_Ignore;
+    // kthread->userContext->default_handler = Signal_Default;
+    // kthread->userContext->ignore_handler = Signal_Ignore;
 
     Print("Sys_RegDeliver > Setting all handlers to %d\n", (uint_t)Signal_Default);
 
@@ -846,6 +846,14 @@ static int Sys_Write(struct Interrupt_State *state) {
                   file_descriptor_table[state->ebx], data_buffer,
                   state->edx);
         Free(data_buffer);
+
+        if (bytes_written == EPIPE)
+        {
+            Print("PID %d attempted to write to pipe without readers. Sending SIGPIPE\n", Get_Current()->pid);
+            Send_Signal(Get_Current(), SIGPIPE);
+            Print("Sys_Write > state->eax = %d\n", state->eax);
+        }
+        KASSERT(bytes_written != -1);
         return bytes_written;
     } else {
         return ENOTFOUND;
@@ -1110,10 +1118,6 @@ static int Sys_Fork(struct Interrupt_State *state) {
     // Copy over signal handlers.
     memcpy(child_ctx->handlers, parent_ctx->handlers, (MAXSIG+1)*sizeof(signal_handler));
     child_ctx->signal = 0;
-    Print("FORK > parent_ctx->handlers[%d] = %d\n",SIGPIPE,(uint_t) parent_ctx->handlers[SIGPIPE]);
-    Print("FORK > child_ctx->handlers[%d] = %d\n",SIGPIPE,(uint_t) child_ctx->handlers[SIGPIPE]);
-
-
 
 
     struct Kernel_Thread *parent_thread = CURRENT_THREAD;
