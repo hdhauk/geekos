@@ -341,8 +341,35 @@ static int Sys_PS(struct Interrupt_State *state) {
  * Returns: 0 on success or error code (< 0) on error
  */
 static int Sys_Kill(struct Interrupt_State *state) {
-    TODO_P(PROJECT_SIGNALS, "Sys_Kill system call");
+    /*
+     * This system call sends a signal to a process.
+     * Its arguments are the PID of the target process
+     * and the signal number. It should set a flag in
+     * the target process, so that when the target process
+     * is about to start executing in user space again,
+     * rather than returning to where it left off, it
+     * will execute the appropriate signal handler
+     * instead.
+     * */
+
+    int pid = state->ebx;
+    int sig = state->ecx;
+
+    struct Kernel_Thread* kthread = NULL;
+    kthread = Lookup_Thread(state->ebx, false);
+
+    Print("sending signal %d to pid %d\n",sig,pid );
+
+    Send_Signal(kthread, state->ecx);
+    // if(kthread->blocked == true){
+    //     Wake_Up_Process(kthread);
+    // }
+    if(Get_Current()->pid != kthread->owner->pid) kthread->refCount-- ; /* deref */
     return 0;
+
+
+    // TODO_P(PROJECT_SIGNALS, "Sys_Kill system call");
+    // return 0;
 }
 
 /*
@@ -353,8 +380,35 @@ static int Sys_Kill(struct Interrupt_State *state) {
  * Returns: 0 on success or error code (< 0) on error
  */
 static int Sys_Signal(struct Interrupt_State *state) {
-    TODO_P(PROJECT_SIGNALS, "Sys_Signal system call");
+
+    /*
+     * This system call registers a signal handler for a
+     * signal number. The signal handler is a function that
+     * takes the signal number as an argument (it may not
+     * be useful to it), processes the signal in some way,
+     * then returns nothing (void). If called with SIGKILL,
+     * return an error (EINVALID). The handler may be set
+     * as the pre-defined “SIG DFL” or “SIG IGN” handlers.
+     * SIG IGN tells the kernel that the process wants to
+     * ignore the signal (it need not be delivered).
+     * SIG DFL tells the kernel to revert to its default
+     * behavior, which is to terminate the process on KILL,
+     * PIPE, USR1, and USR2, and to discard (ignore) SIGCHLD.
+     * A process may need to set SIG DFL after setting the
+     * handler to something else.
+     *
+     * */
+    int signal_number = state->ecx;
+
+    if (!IS_SIGNUM(signal_number) || signal_number == SIGKILL){
+        Print("Cannot register invalid signal %d\n", signal_number);
+        return EUNSUPPORTED;
+    }
+
+    Set_Handler(Get_Current(), state->ecx, (signal_handler)state->ebx);
     return 0;
+
+    //TODO_P(PROJECT_SIGNALS, "Sys_Signal system call");
 }
 
 /*
@@ -369,8 +423,34 @@ static int Sys_Signal(struct Interrupt_State *state) {
  * Returns: 0 on success or error code (< 0) on error
  */
 static int Sys_RegDeliver(struct Interrupt_State *state) {
+    /*
+     * This system call registers the “trampoline” function.
+     * This function does only one thing: invoke the system
+     * call Sys ReturnSignal (see below). The trampoline
+     * function is executed at the conclusion of signal handler.
+     * The RegDeliver system call is invoked by Sig Init when
+     * called by the.
+     * Entry function in src/libc/entry.c;
+     * i.e., this function is invoked prior to running
+     * the user program’s main().
+     * */
+
+
+    struct Kernel_Thread* kthread = Get_Current();
+    kthread->userContext->return_signal	= (signal_handler)state->ebx;
+    kthread->userContext->default_handler = Signal_Default;
+    kthread->userContext->ignore_handler = Signal_Ignore;
+
+    Print("Sys_RegDeliver > Setting all handlers to %d\n", (uint_t)Signal_Default);
+
+    Set_Handler(kthread, SIGKILL, Signal_Default);
+    Set_Handler(kthread, SIGUSR1, Signal_Default);
+    Set_Handler(kthread, SIGUSR2, Signal_Default);
+    Set_Handler(kthread, SIGCHLD, Signal_Default);
+    Set_Handler(kthread, SIGALARM, Signal_Default);
+    Set_Handler(kthread, SIGPIPE, Signal_Default);
     return 0;
-    TODO_P(PROJECT_SIGNALS, "Sys_RegDeliver system call");
+
 }
 
 /*
@@ -381,8 +461,21 @@ static int Sys_RegDeliver(struct Interrupt_State *state) {
  * Returns: not expected to "return"
  */
 static int Sys_ReturnSignal(struct Interrupt_State *state) {
-    TODO_P(PROJECT_SIGNALS, "Sys_ReturnSignal system call");
-    return EUNSUPPORTED;
+    /*
+     * This system call is not invoked by user-space programs
+     * directly, but rather is invoked by the trampoline function.
+     * The latter is executed when the signal handler returns.
+     * */
+
+    Print("KERNEL > Sys_ReturnSignal\n");
+    struct Kernel_Thread* kthread = Get_Current();
+    Complete_Handler(kthread, state);
+
+    return -1;
+
+
+    // TODO_P(PROJECT_SIGNALS, "Sys_ReturnSignal system call");
+    // return EUNSUPPORTED;
 }
 
 /*
@@ -392,9 +485,47 @@ static int Sys_ReturnSignal(struct Interrupt_State *state) {
  * Returns: pid of reaped process on success, -1 on error.
  */
 static int Sys_WaitNoPID(struct Interrupt_State *state) {
-    /* not required for Spring 2017 */
-    TODO_P(PROJECT_SIGNALS, "Sys_WaitNoPID system call");
-    return EUNSUPPORTED;
+    /*
+     * The Sys Wait system call takes as its argument the
+     * PID of the child process to wait for, and returns
+     * when that process dies. The Sys WaitNoPID call, in
+     * contrast, takes a pointer to an integer as its
+     * argument, and reaps any child process that happens
+     * to be a zombie. It places the exit status of the
+     * child process in the memory location the argument
+     * points to and returns the pid of the zombie. If
+     * there are no dead child process, then the system
+     * call should return ENOZOMBIES.
+     * */
+
+    int status = 0;
+    Print("KERNEL > Sys_WaitNoPID : %x\n", state->ebx);
+    status = 0x7;
+    Copy_To_User(state->ebx, &status, sizeof(int));
+    return -1;
+
+    /*
+     int exitCode;
+    struct Kernel_Thread *kthread;
+
+    kthread = Lookup_Thread(state->ebx, 0);
+    if(kthread == 0) {
+        // can't find the process id passed
+        exitCode = EINVALID;
+        goto finish;
+    }
+
+    if(kthread->detached) {
+        // can't wait on a detached process
+        exitCode = EINVALID;
+        goto finish;
+    }
+    exitCode = Join(kthread);
+  finish:
+    return exitCode;
+     * */
+
+
 }
 
 /*
@@ -927,13 +1058,17 @@ static int Sys_Pipe(struct Interrupt_State *state) {
    return 0;
 }
 
+#define MAX_FORKS 50
 
 
 static int Sys_Fork(struct Interrupt_State *state) {
     struct User_Context *parent_ctx = CURRENT_THREAD->userContext;
     struct User_Context *child_ctx = NULL;
 
-    Print("parent_ctx->refCount = %d\n", parent_ctx->refCount);
+
+    if (parent_ctx->refCount > MAX_FORKS){
+        return EUNSPECIFIED;
+    }
 
     // Allocate memory for child.
     child_ctx = (struct User_Context *)Malloc(sizeof(struct User_Context));
@@ -971,6 +1106,16 @@ static int Sys_Fork(struct Interrupt_State *state) {
         IncrementRefCount(child_ctx->file_descriptor_table[i]);
     }
 
+
+    // Copy over signal handlers.
+    memcpy(child_ctx->handlers, parent_ctx->handlers, (MAXSIG+1)*sizeof(signal_handler));
+    child_ctx->signal = 0;
+    Print("FORK > parent_ctx->handlers[%d] = %d\n",SIGPIPE,(uint_t) parent_ctx->handlers[SIGPIPE]);
+    Print("FORK > child_ctx->handlers[%d] = %d\n",SIGPIPE,(uint_t) child_ctx->handlers[SIGPIPE]);
+
+
+
+
     struct Kernel_Thread *parent_thread = CURRENT_THREAD;
     struct Kernel_Thread *child_thread = NULL;
 
@@ -979,6 +1124,7 @@ static int Sys_Fork(struct Interrupt_State *state) {
     if (child_thread == NULL){
         return ENOMEM;
     }
+
 
 
     // Copy kernel stack.

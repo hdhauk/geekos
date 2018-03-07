@@ -17,6 +17,8 @@
 #ifndef GEEKOS_SIGNAL_H
 #define GEEKOS_SIGNAL_H
 
+#include <geekos/ktypes.h>
+
 /* Signal numbers */
 #define SIGKILL  1              /* can't be handled by users */
 #define SIGUSR1  2
@@ -34,14 +36,24 @@
 /* Definition of a signal handler */
 typedef void (*signal_handler) (int);
 
+
+void Signal_Ignore(int sig);
+void Signal_Default(int sig);
+
 /* Default handlers */
-#define SIG_DFL  (signal_handler)1
-#define SIG_IGN  (signal_handler)2
+#define SIG_DFL  (signal_handler)Signal_Default
+#define SIG_IGN  (signal_handler)Signal_Ignore
+
+
 
 #ifdef GEEKOS
 
 struct Interrupt_State;
 struct Kernel_Thread;
+
+
+void Send_Signal(struct Kernel_Thread *kthread, int sig);
+void Set_Handler(struct Kernel_Thread *kthread, int sig, signal_handler handler);
 
 int Check_Pending_Signal(struct Kernel_Thread *kthread,
                          struct Interrupt_State *esp);

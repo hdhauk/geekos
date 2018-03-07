@@ -103,7 +103,10 @@ struct User_Context {
 
     char name[MAX_PROC_NAME_SZB];
 
-
+    
+    int signal;
+    signal_handler handlers[MAXSIG + 1];
+    signal_handler return_signal;
 
 
     mappedRegion_t *mappedRegions;
