@@ -41,8 +41,8 @@ void Signal_Ignore(int sig);
 void Signal_Default(int sig);
 
 /* Default handlers */
-#define SIG_DFL  (signal_handler)Signal_Default
-#define SIG_IGN  (signal_handler)Signal_Ignore
+#define SIG_DFL  (signal_handler)0
+#define SIG_IGN  (signal_handler)1
 
 
 

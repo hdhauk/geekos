@@ -404,8 +404,17 @@ static int Sys_Signal(struct Interrupt_State *state) {
         Print("Cannot register invalid signal %d\n", signal_number);
         return EUNSUPPORTED;
     }
+    int sig_ign = (int)SIG_IGN;
+    Print("sig_dfl = %d\n", sig_ign);
 
-    Set_Handler(Get_Current(), state->ecx, (signal_handler)state->ebx);
+    if (signal_number == (int)SIG_DFL) {
+        Set_Handler(Get_Current(),state->eax, Signal_Default);
+    } else if (signal_number == (int)SIG_IGN){
+        Set_Handler(Get_Current(),state->eax, Signal_Ignore);
+    } else {
+        Set_Handler(Get_Current(), state->ecx, (signal_handler)state->ebx);
+    }
+
     return 0;
 
     //TODO_P(PROJECT_SIGNALS, "Sys_Signal system call");
@@ -498,10 +507,8 @@ static int Sys_WaitNoPID(struct Interrupt_State *state) {
      * call should return ENOZOMBIES.
      * */
 
-    int status = 0;
+    //int status = 0;
     Print("KERNEL > Sys_WaitNoPID : %x\n", state->ebx);
-    status = 0x7;
-    Copy_To_User(state->ebx, &status, sizeof(int));
     return -1;
 
     /*
