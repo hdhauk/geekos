@@ -186,6 +186,11 @@ extern void *Tlocal_Get(tlocal_key_t);
 /* Print list of all threads, for debugging. */
 extern void Dump_All_Thread_List(void);
 
+// Return NULL if no zombie children.
+extern struct Kernel_Thread *Get_Zombie_Child(void);
+
+extern void Public_Detach_Thread(struct Kernel_Thread *kthread);
+
 extern void Wake_Up_Locked(struct Thread_Queue *waitQueue);
 
 #endif /* GEEKOS_KTHREAD_H */

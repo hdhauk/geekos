@@ -106,6 +106,8 @@ extern struct User_Context *Create_User_Context(ulong_t size) {
     /* Nobody is using this user context yet */
     context->refCount = 0;
 
+    clear_all_signals(context);
+
 
     /* Success! */
     return context;

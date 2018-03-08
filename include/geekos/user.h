@@ -104,7 +104,8 @@ struct User_Context {
     char name[MAX_PROC_NAME_SZB];
 
     
-    int signal;
+    int currently_handling_signal;
+    int signals[MAXSIG+1];
     signal_handler handlers[MAXSIG + 1];
     signal_handler return_signal;
 

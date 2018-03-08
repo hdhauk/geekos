@@ -723,6 +723,14 @@ void Yield(void) {
 void Exit(int exitCode) {
     extern int Munmap_Impl(uint_t addr);
 
+    /* Send SIGCHLD signal to parent */
+    if (CURRENT_THREAD->owner != NULL &&
+        !Is_Member_Of_Thread_Queue(&CURRENT_THREAD->joinQueue, CURRENT_THREAD->owner) &&
+        CURRENT_THREAD->userContext != NULL)
+    {
+        Send_Signal(CURRENT_THREAD->owner, SIGCHLD);
+    }
+
     bool iflag;
     struct Kernel_Thread *current = CURRENT_THREAD;
 
@@ -998,4 +1006,26 @@ void Dump_All_Thread_List(void) {
 
     Spin_Unlock(&kthreadLock);
     Deprecated_End_Int_Atomic(iflag);
+}
+
+
+struct Kernel_Thread *Get_Zombie_Child(void) {
+    struct Kernel_Thread *zombie = NULL;
+    struct Kernel_Thread *search_thread = Get_Front_Of_All_Thread_List(&s_allThreadList);
+
+    while (search_thread != NULL) {
+        bool my_child = search_thread->owner == Get_Current();
+        bool is_zombie = search_thread->refCount == 1 && search_thread->alive == false;
+        if (is_zombie && my_child)
+        {
+            zombie = search_thread;
+            return zombie;
+        }
+        search_thread = Get_Next_In_All_Thread_List(search_thread);
+    }
+    return NULL;
+}
+
+void Public_Detach_Thread(struct Kernel_Thread *kthread) {
+    Detach_Thread(kthread);
 }

@@ -38,25 +38,49 @@
 
 void Print_IS(struct Interrupt_State *esp);
 
+int get_pending_signal(struct User_Context *ctx){
+    int i;
+    for (i = 0; i <= MAXSIG; i++)
+    {
+        if (ctx->signals[i] != 0)
+        {
+            return i;
+        }
+    }
+    return 0;
+}
+
+void clear_all_signals(struct User_Context *ctx)
+{
+    int i;
+    for (i = 0; i <= MAXSIG; i++)
+    {
+        ctx->signals[i] = 0;
+    }
+}
+
 void Signal_Ignore(int sig)
 {
-    //Print("Signal %d ignored\n",sig);
-    if (!Interrupts_Enabled()){
-        Enable_Interrupts();
-    }
+    CURRENT_THREAD->userContext->currently_handling_signal = 0;
 }
 
 void Signal_Default(int sig)
 {
-    Print("Terminated %d.\n",Get_Current()->pid);
     Enable_Interrupts();
+    Print("Terminated %d.\n",Get_Current()->pid);
     Exit(256 + sig);
+}
+
+void print_signals(struct User_Context *c){
+    int i;
+    for (i = 1; i <= MAXSIG; i++){
+        Print("SIG #%d -> %d\n", i, c->signals[i]);
+    }
 }
 
 void Send_Signal(struct Kernel_Thread *kthread, int sig)
 {
-    // Print("user_ctx->signal = %d\n", sig);
-    kthread->userContext->signal = sig;
+    kthread->userContext->signals[sig] = 1;
 }
 
 void Set_Handler(struct Kernel_Thread *kthread, int sig, signal_handler handler) {
@@ -76,12 +100,6 @@ void Complete_Handler(struct Kernel_Thread *kthread,
     KASSERT(kthread);
     KASSERT(state);
 
-    if (!Interrupts_Enabled()){
-        Print("Complete_Handler > Enabling interrupts\n");
-        Enable_Interrupts();
-    }
-
-
     struct User_Interrupt_State *user_interrupt_state = (struct User_Interrupt_State *)state;
     uint_t usr_sp = user_interrupt_state->espUser;
     usr_sp += sizeof(int); // don't care about the signal...
@@ -93,7 +111,7 @@ void Complete_Handler(struct Kernel_Thread *kthread,
 
     user_interrupt_state->espUser = usr_sp;
 
-    Print("Complete_Handler > state->eax = %d \n", state->eax);
+    kthread->userContext->currently_handling_signal = 0;
 }
 
 int Check_Pending_Signal(struct Kernel_Thread *kthread,
@@ -125,17 +143,21 @@ int Check_Pending_Signal(struct Kernel_Thread *kthread,
         return 0;
     }
 
-    int sig = kthread->userContext->signal;
+    int sig = get_pending_signal(kthread->userContext);
+
     // No signal waiting.
     if (sig == 0)
     {
         return 0;
     }
 
-    //Print("KERNEL > Check_Pending_Signal: found pending signal %d\n",sig);
+    if (kthread->userContext->currently_handling_signal)
+    {
+        return 0;
+    }
+
     KASSERT(IS_SIGNUM(sig));
-
-
+    kthread->userContext->currently_handling_signal = 1;
     return sig;
 
 }
@@ -207,23 +229,21 @@ void Setup_Frame(struct Kernel_Thread *kthread,
     KASSERT(kthread);
     KASSERT(state);
 
-    if (Interrupts_Enabled()){
-        Print("Setup_Frame > Disabling interrupts\n");
-        Disable_Interrupts();
-    }
-
-    Print("setup_frame > state->eax = %d \n", state->eax);
-
-    //Print("KERNEL > Setup_Frame\n");
-    int sig = kthread->userContext->signal;
+    int sig = get_pending_signal(kthread->userContext);
     KASSERT(IS_SIGNUM(sig));
 
-    signal_handler handler = kthread->userContext->handlers[kthread->userContext->signal];
+    signal_handler handler = kthread->userContext->handlers[sig];
 
-    if (handler == Signal_Default || handler == Signal_Ignore) {
-        //Print("Setup_Frame > A default handler for signal %d\n",sig);
-        handler(sig);
+    if (handler == SIG_IGN) {
+        kthread->userContext->currently_handling_signal = 0;
         return;
+    }
+    else if (handler == SIG_DFL)
+    {
+        kthread->userContext->currently_handling_signal = 0;
+        Enable_Interrupts();
+        Print("Terminated %d\n", Get_Current()->pid);
+        Exit(256 + sig);
     }
 
     // 2. Acquire pointer to top of user stack.
@@ -245,6 +265,7 @@ void Setup_Frame(struct Kernel_Thread *kthread,
     // 6. Change the current kernel stack
     state->eip = (uint_t )kthread->userContext->handlers[sig];
     user_interrupt_state->espUser = usr_sp;
-    kthread->userContext->signal = 0;
+    kthread->userContext->signals[sig] = 0;
+
 
 }

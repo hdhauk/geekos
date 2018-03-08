@@ -40,6 +40,7 @@ typedef void (*signal_handler) (int);
 void Signal_Ignore(int sig);
 void Signal_Default(int sig);
 
+
 /* Default handlers */
 #define SIG_DFL  (signal_handler)0
 #define SIG_IGN  (signal_handler)1
@@ -52,6 +53,7 @@ struct Interrupt_State;
 struct Kernel_Thread;
 
 
+void clear_all_signals(struct User_Context *ctx);
 void Send_Signal(struct Kernel_Thread *kthread, int sig);
 void Set_Handler(struct Kernel_Thread *kthread, int sig, signal_handler handler);
 

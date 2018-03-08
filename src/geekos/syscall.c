@@ -352,6 +352,7 @@ static int Sys_Kill(struct Interrupt_State *state) {
      * instead.
      * */
 
+
     int pid = state->ebx;
     int sig = state->ecx;
 
@@ -360,20 +361,26 @@ static int Sys_Kill(struct Interrupt_State *state) {
     }
 
     struct Kernel_Thread* kthread = NULL;
-    kthread = Lookup_Thread(pid, false);
 
-    if (kthread == NULL){
+    if (Get_Current()->pid == pid){
+        kthread = Get_Current();
+    } else {
+        kthread = Lookup_Thread(pid, false);
+    }
+
+    if (kthread == NULL)
+    {
         return ENOTFOUND;
     }
 
     // Check if thread is in fact a user thread.
-    if (kthread != NULL && kthread->detached){
+    if (kthread->detached){
         return EUNSUPPORTED;
     }
 
 
     Send_Signal(kthread, state->ecx);
-    if(Get_Current()->pid != kthread->owner->pid) kthread->refCount-- ; /* deref */
+    //if(Get_Current()->pid != kthread->owner->pid) kthread->refCount-- ; /* deref */
     return 0;
 }
 
@@ -423,6 +430,7 @@ static int Sys_Signal(struct Interrupt_State *state) {
     //TODO_P(PROJECT_SIGNALS, "Sys_Signal system call");
 }
 
+
 /*
  * Register the Return_Signal trampoline for this process.
  * Signals cannot be delivered until this is registered.
@@ -450,15 +458,16 @@ static int Sys_RegDeliver(struct Interrupt_State *state) {
 
     struct Kernel_Thread* kthread = Get_Current();
     kthread->userContext->return_signal	= (signal_handler)state->ebx;
-    // kthread->userContext->default_handler = Signal_Default;
-    // kthread->userContext->ignore_handler = Signal_Ignore;
 
-    Set_Handler(kthread, SIGKILL, Signal_Default);
-    Set_Handler(kthread, SIGUSR1, Signal_Default);
-    Set_Handler(kthread, SIGUSR2, Signal_Default);
-    Set_Handler(kthread, SIGCHLD, Signal_Ignore);
-    Set_Handler(kthread, SIGALARM, Signal_Default);
-    Set_Handler(kthread, SIGPIPE, Signal_Default);
+    Set_Handler(kthread, SIGKILL, SIG_DFL);
+    Set_Handler(kthread, SIGUSR1, SIG_DFL);
+    Set_Handler(kthread, SIGUSR2, SIG_DFL);
+    Set_Handler(kthread, SIGCHLD, SIG_IGN);
+    Set_Handler(kthread, SIGALARM, SIG_DFL);
+    Set_Handler(kthread, SIGPIPE, SIG_DFL);
+
+    clear_all_signals(kthread->userContext);
+
     return 0;
 
 }
@@ -503,9 +512,23 @@ static int Sys_WaitNoPID(struct Interrupt_State *state) {
      * call should return ENOZOMBIES.
      * */
 
-    
-    return ENOZOMBIES;
 
+    struct Kernel_Thread *zombie = Get_Zombie_Child();
+    if (zombie == NULL)
+    {
+        return ENOZOMBIES;
+    }
+
+    int zombie_pid;
+    zombie_pid = zombie->pid;
+
+    // Copy exit code to user variable
+    Copy_To_User(state->ebx, &zombie->exitCode, sizeof(int));
+
+    // Detach zombie thread, which sends to reaper
+    Public_Detach_Thread(zombie);
+
+    return zombie_pid;
 }
 
 /*
@@ -829,7 +852,6 @@ static int Sys_Write(struct Interrupt_State *state) {
 
         if (bytes_written == EPIPE)
         {
-            Print("PID %d attempted to write to pipe without readers. Sending SIGPIPE\n", Get_Current()->pid);
             Send_Signal(Get_Current(), SIGPIPE);
         }
         KASSERT(bytes_written != -1);
@@ -1096,7 +1118,8 @@ static int Sys_Fork(struct Interrupt_State *state) {
 
     // Copy over signal handlers.
     memcpy(child_ctx->handlers, parent_ctx->handlers, (MAXSIG+1)*sizeof(signal_handler));
-    child_ctx->signal = 0;
+    clear_all_signals(child_ctx);
+    child_ctx->currently_handling_signal = 0;
 
 
     struct Kernel_Thread *parent_thread = CURRENT_THREAD;
