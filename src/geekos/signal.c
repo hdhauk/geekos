@@ -42,7 +42,6 @@ void Signal_Ignore(int sig)
 {
     //Print("Signal %d ignored\n",sig);
     if (!Interrupts_Enabled()){
-        Print("Signal_Ignore > Enabling interrupts\n");
         Enable_Interrupts();
     }
 }

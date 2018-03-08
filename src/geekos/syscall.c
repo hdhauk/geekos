@@ -355,21 +355,26 @@ static int Sys_Kill(struct Interrupt_State *state) {
     int pid = state->ebx;
     int sig = state->ecx;
 
-    struct Kernel_Thread* kthread = NULL;
-    kthread = Lookup_Thread(state->ebx, false);
+    if (!IS_SIGNUM(sig)){
+        return EUNSUPPORTED;
+    }
 
-    Print("sending signal %d to pid %d\n",sig,pid );
+    struct Kernel_Thread* kthread = NULL;
+    kthread = Lookup_Thread(pid, false);
+
+    if (kthread == NULL){
+        return ENOTFOUND;
+    }
+
+    // Check if thread is in fact a user thread.
+    if (kthread != NULL && kthread->detached){
+        return EUNSUPPORTED;
+    }
+
 
     Send_Signal(kthread, state->ecx);
-    // if(kthread->blocked == true){
-    //     Wake_Up_Process(kthread);
-    // }
     if(Get_Current()->pid != kthread->owner->pid) kthread->refCount-- ; /* deref */
     return 0;
-
-
-    // TODO_P(PROJECT_SIGNALS, "Sys_Kill system call");
-    // return 0;
 }
 
 /*
@@ -404,8 +409,6 @@ static int Sys_Signal(struct Interrupt_State *state) {
         Print("Cannot register invalid signal %d\n", signal_number);
         return EUNSUPPORTED;
     }
-    int sig_ign = (int)SIG_IGN;
-    Print("sig_dfl = %d\n", sig_ign);
 
     if (signal_number == (int)SIG_DFL) {
         Set_Handler(Get_Current(),state->eax, Signal_Default);
@@ -450,12 +453,10 @@ static int Sys_RegDeliver(struct Interrupt_State *state) {
     // kthread->userContext->default_handler = Signal_Default;
     // kthread->userContext->ignore_handler = Signal_Ignore;
 
-    Print("Sys_RegDeliver > Setting all handlers to %d\n", (uint_t)Signal_Default);
-
     Set_Handler(kthread, SIGKILL, Signal_Default);
     Set_Handler(kthread, SIGUSR1, Signal_Default);
     Set_Handler(kthread, SIGUSR2, Signal_Default);
-    Set_Handler(kthread, SIGCHLD, Signal_Default);
+    Set_Handler(kthread, SIGCHLD, Signal_Ignore);
     Set_Handler(kthread, SIGALARM, Signal_Default);
     Set_Handler(kthread, SIGPIPE, Signal_Default);
     return 0;
@@ -476,15 +477,10 @@ static int Sys_ReturnSignal(struct Interrupt_State *state) {
      * The latter is executed when the signal handler returns.
      * */
 
-    Print("KERNEL > Sys_ReturnSignal\n");
     struct Kernel_Thread* kthread = Get_Current();
     Complete_Handler(kthread, state);
 
-    return -1;
-
-
-    // TODO_P(PROJECT_SIGNALS, "Sys_ReturnSignal system call");
-    // return EUNSUPPORTED;
+    return state->eax;
 }
 
 /*
@@ -507,31 +503,8 @@ static int Sys_WaitNoPID(struct Interrupt_State *state) {
      * call should return ENOZOMBIES.
      * */
 
-    //int status = 0;
-    Print("KERNEL > Sys_WaitNoPID : %x\n", state->ebx);
-    return -1;
-
-    /*
-     int exitCode;
-    struct Kernel_Thread *kthread;
-
-    kthread = Lookup_Thread(state->ebx, 0);
-    if(kthread == 0) {
-        // can't find the process id passed
-        exitCode = EINVALID;
-        goto finish;
-    }
-
-    if(kthread->detached) {
-        // can't wait on a detached process
-        exitCode = EINVALID;
-        goto finish;
-    }
-    exitCode = Join(kthread);
-  finish:
-    return exitCode;
-     * */
-
+    
+    return ENOZOMBIES;
 
 }
 
