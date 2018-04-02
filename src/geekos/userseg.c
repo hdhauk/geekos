@@ -86,17 +86,17 @@ extern struct User_Context *Create_User_Context(ulong_t size) {
     if(context->ldtDescriptor == 0)
         goto fail;
     if(userDebug)
-        Print("Allocated descriptor %d for LDT\n",
-              Get_Descriptor_Index(context->ldtDescriptor));
-    Init_LDT_Descriptor(context->ldtDescriptor, context->ldt,
-                        NUM_USER_LDT_ENTRIES);
+        Print("Allocated descriptor %d for LDT\n", Get_Descriptor_Index(context->ldtDescriptor));
+
+    Init_LDT_Descriptor(context->ldtDescriptor, context->ldt, NUM_USER_LDT_ENTRIES);
     index = Get_Descriptor_Index(context->ldtDescriptor);
     context->ldtSelector = Selector(KERNEL_PRIVILEGE, true, index);
 
     /* Initialize code and data segments within the LDT */
     Init_Code_Segment_Descriptor(&context->ldt[0],
                                  (ulong_t) context->memory,
-                                 size / PAGE_SIZE, USER_PRIVILEGE);
+                                 size / PAGE_SIZE,
+                                 USER_PRIVILEGE); // so you can access from usermode
     Init_Data_Segment_Descriptor(&context->ldt[1],
                                  (ulong_t) context->memory,
                                  size / PAGE_SIZE, USER_PRIVILEGE);

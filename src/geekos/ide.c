@@ -391,7 +391,7 @@ static int readDriveConfig(int drive) {
 void Init_IDE(void) {
     int errorCode;
 
-    Print("Initializing IDE controller...\n");
+    // Print("Initializing IDE controller...\n");
 
     /* Reset the controller and drives */
     Out_Byte(IDE_DEVICE_CONTROL_REGISTER,

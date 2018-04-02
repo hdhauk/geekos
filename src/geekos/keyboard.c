@@ -304,7 +304,7 @@ void Keyboard_Interrupt_Handler(struct Interrupt_State *state) {
 void Init_Keyboard(void) {
     ushort_t irqMask;
 
-    Print("Initializing keyboard...\n");
+    //Print("Initializing keyboard...\n");
 
     /* Start out with no shift keys enabled. */
     s_shiftState = 0;

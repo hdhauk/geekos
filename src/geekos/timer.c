@@ -227,7 +227,7 @@ void Init_Timer(void) {
      * reasonable.
      */
 
-    Print("Initializing timer...\n");
+    // Print("Initializing timer...\n");
 
     /* configure for default clock */
     // Out_Byte(0x43, 0x36);

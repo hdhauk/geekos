@@ -15,6 +15,7 @@
 #include <geekos/smp.h>
 #include <geekos/projects.h>
 #include <geekos/kthread.h>
+#include <geekos/user.h>
 
 /*
  * This is defined in lowlevel.asm.
@@ -78,8 +79,8 @@ struct Segment_Descriptor *Allocate_Segment_Descriptor(void) {
 }
 
 struct Segment_Descriptor *Allocate_Segment_Descriptor_On_CPU(int cpu) {
-    TODO_P(PROJECT_PERCPU, "use the per-cpu GDT");
-    return Allocate_Segment_Descriptor_From(s_GDT[0]);
+    //TODO_P(PROJECT_PERCPU, "use the per-cpu GDT");
+    return Allocate_Segment_Descriptor_From(s_GDT[cpu]);
 }
 
 /*
@@ -115,34 +116,42 @@ void Init_GDT(int cpuid) {
 
     KASSERT(sizeof(struct Segment_Descriptor) == 8);
 
-    if(cpuid == 0) {            /* Clear out entries. */
-        for(i = 0; i < NUM_GDT_ENTRIES; ++i) {
-            desc = &s_GDT[cpuid][i];
-            Init_Null_Segment_Descriptor(desc);
-            desc->avail = 1;
-        }
-
-        /* Kernel code segment. */
-        desc = Allocate_Segment_Descriptor_From(s_GDT[cpuid]);
-        Init_Code_Segment_Descriptor(desc, 0,   /* base address */
-                                     0x100000,  /* num pages (== 2^20) */
-                                     0  /* privilege level (0 == kernel) */
-            );
-        KASSERT(Get_Descriptor_Index(desc) == (KERNEL_CS >> 3));
-
-        /* Kernel data segment. */
-        desc = Allocate_Segment_Descriptor_From(s_GDT[cpuid]);
-        Init_Data_Segment_Descriptor(desc, 0,   /* base address */
-                                     0x100000,  /* num pages (== 2^20) */
-                                     0  /* privilege level (0 == kernel) */
-            );
-        KASSERT(Get_Descriptor_Index(desc) == (KERNEL_DS >> 3));
-
-        TODO_P(PROJECT_PERCPU,
-               "Allocate a segment descriptor for the per-cpu region for this cpu.");
-
+    //if(cpuid == 0) {            /* Clear out entries. */ // TODO
+    for(i = 0; i < NUM_GDT_ENTRIES; ++i) {
+        desc = &s_GDT[cpuid][i];
+        Init_Null_Segment_Descriptor(desc);
+        desc->avail = 1;
     }
-    cpuid = 0;                  /* use the cpu 0 GDT (not per cpu) */
+
+    /* Kernel code segment. */
+    desc = Allocate_Segment_Descriptor_From(s_GDT[cpuid]);
+    Init_Code_Segment_Descriptor(desc, 0,   /* base address */
+                                 0x100000,  /* num pages (== 2^20) */
+                                 0  /* privilege level (0 == kernel) */
+        );
+    KASSERT(Get_Descriptor_Index(desc) == (KERNEL_CS >> 3));
+
+    /* Kernel data segment. */
+    desc = Allocate_Segment_Descriptor_From(s_GDT[cpuid]);
+    Init_Data_Segment_Descriptor(desc, 0,   /* base address */
+                                 0x100000,  /* num pages (== 2^20) */
+                                 0  /* privilege level (0 == kernel) */
+        );
+    KASSERT(Get_Descriptor_Index(desc) == (KERNEL_DS >> 3));
+
+
+    // Allocate a segment descriptor for the per-cpu region for this cpu.
+    desc = Allocate_Segment_Descriptor_On_CPU(cpuid);
+    Init_Data_Segment_Descriptor(desc, 0, 0x100000, KERNEL_PRIVILEGE);
+    KASSERT(Get_Descriptor_Index(desc) == (KERNEL_PERCPU >> 3));
+
+    //TODO_P(PROJECT_PERCPU, "Allocate a segment descriptor for the per-cpu region for this cpu.");
+
+    //}
+
+
+
+    //cpuid = 0;                  /* use the cpu 0 GDT (not per cpu) */ //TODO
     /* Activate the kernel GDT. */
     limitAndBase[0] = sizeof(struct Segment_Descriptor) * NUM_GDT_ENTRIES;
     limitAndBase[1] = ((ulong_t) s_GDT[cpuid]) & 0xffff;

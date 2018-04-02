@@ -52,7 +52,7 @@
 #include <geekos/smp.h>
 #include <geekos/io.h>
 #include <geekos/serial.h>
-
+#include <geekos/percpu.h>
 
 /*
  * Define this for a self-contained boot floppy
@@ -117,16 +117,21 @@ void Main(struct Boot_Info *bootInfo) {
     Init_Screen();
     Init_Mem(bootInfo);
     Init_CRC32();
-    TODO_P(PROJECT_PERCPU, "Initialize PERCPU");
+
+    // Init for first CPU.
+    Init_PerCPU(0);
+    //TODO_P(PROJECT_PERCPU, "Initialize PERCPU");
+
+
     Init_TSS();
 
     /* by modifying begin_int_atomic to autolock if not locked when interrupts are disabled, 
        this lockKernel() became duplicative */
     /* lockKernel(); */
     Init_Interrupts(0);
-    Print("Init_SMP\n");
+    // Print("Init_SMP\n");
     Init_SMP();
-    Print("/Init_SMP\n");
+    // Print("/Init_SMP\n");
     TODO_P(PROJECT_VIRTUAL_MEMORY_A,
            "initialize virtual memory page tables.");
     Init_Scheduler(0, (void *)KERN_STACK);
@@ -149,8 +154,7 @@ void Main(struct Boot_Info *bootInfo) {
     Init_Serial();
 
     /* Expect that the global lock is not held. */
-    Print("the global lock is %sheld.\n",
-          Kernel_Is_Locked()? "" : "not ");
+    // Print("the global lock is %sheld.\n", Kernel_Is_Locked()? "" : "not ");
 
     Release_SMP();
 
@@ -174,8 +178,8 @@ void Main(struct Boot_Info *bootInfo) {
     TODO_P(PROJECT_VIRTUAL_MEMORY_A, "initialize page file.");
 
     Set_Current_Attr(ATTRIB(BLACK, GREEN | BRIGHT));
-    Print("Never gonna give you up\n");
-    Print("Welcome to GeekOS!\n");
+    // Print("Never gonna give you up\n");
+    // Print("Welcome to GeekOS!\n");
     Set_Current_Attr(ATTRIB(BLACK, GRAY));
 
     TODO_P(PROJECT_SOUND, "play startup sound");

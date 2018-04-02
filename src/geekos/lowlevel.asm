@@ -235,9 +235,10 @@ Load_GDTR:
     mov	ds, ax
     mov	es, ax
     mov	fs, ax
-    mov	gs, ax
     mov	ss, ax
-    jmp	KERNEL_CS:.here
+    mov ax, KERNEL_PERCPU
+    mov	gs, ax
+    jmp	KERNEL_CS:.here ; memory address of .here tag, KERNEL_CS = 0 so... jump to 0 + address of .here
 .here:
     ret
 
@@ -309,14 +310,14 @@ APIC_ID		equ	0x20
 ;;
 %macro Mov_EAX_Current_Thread_PTR 0
     mov	eax, [APIC_BASE+APIC_ID]		;; load id of local APC (which is cpuid)
-    shr	eax, 24-2				;; id is in high 24 bits of register, but need id <<2
-    add	eax, g_currentThreads
+    shr	eax, 24-2				;; id is in high 24 bits of register, but need id <<2 //shr = shift right
+    add	eax, g_currentThreads   ;; NOTE Could be on another cpu than previous line
 %endmacro 
 
 ;; eax = *( &g_currentThreads[Get_CPU_ID()] )
 %macro Get_Current_Thread_To_EAX 0
     Mov_EAX_Current_Thread_PTR
-    mov	eax, [eax]              
+    mov	eax, [eax]
 %endmacro
 %macro Set_Current_Thread_From_EBX 0
     Mov_EAX_Current_Thread_PTR
@@ -327,7 +328,7 @@ APIC_ID		equ	0x20
     push	dword [eax]
 %endmacro
 
-%include "percpu.asm"
+;%include "percpu.asm"
 
 ; Common interrupt handling code.
 ; Save registers, call C handler function,
@@ -343,6 +344,8 @@ Handle_Interrupt:
     mov	ax, KERNEL_DS
     mov	ds, ax
     mov	es, ax
+    mov gs, ax  ;; TODO: Is this correct?
+
 
     ; Get the address of the C handler function from the
     ; table of handler functions.

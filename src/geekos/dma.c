@@ -138,7 +138,7 @@ static uchar_t s_allocated;     /*!< Which channels have been allocated. */
  * Initialize the DMA controllers.
  */
 void Init_DMA(void) {
-    Print("Initializing DMA Controller...\n");
+    // Print("Initializing DMA Controller...\n");
 
     /* Reset the controller */
     Out_Byte(DMA_MASTER_CLEAR_REG, 0);

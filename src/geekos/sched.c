@@ -114,6 +114,8 @@ struct Kernel_Thread *Get_Next_Runnable_Locked(void) {
     return best;
 }
 
+static int kthread1pid = -1;
+static int kthread1 = -1;
 /* Called by lowlevel.asm in handle_interrupt, with
    interrupts disabled, but no locks held. */
 struct Kernel_Thread *Get_Next_Runnable(void) {
@@ -154,6 +156,19 @@ struct Kernel_Thread *Get_Next_Runnable(void) {
 
     /* at least could be the idle thread */
     KASSERT(ret);
+
+    if (kthread1pid == -1){
+        kthread1pid = ret->pid;
+        kthread1 = (int) ret;
+    }
+
+    if (((unsigned long)(ret->esp - 1) & ~0xfff) !=
+        ((unsigned long)ret->stackPage)){
+        Print("next runnable kthread with PID %d has invalid kernel stack pointer addr: %d\n"
+                , ret->pid, (int)ret);
+        Print("pid %d had address %d\n", kthread1pid, kthread1);
+
+    }
 
     /* ensure the new thread has a valid kernel stack pointer. */
     KASSERT(((unsigned long)(ret->esp - 1) & ~0xfff) ==
