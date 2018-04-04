@@ -124,11 +124,11 @@ void Main(struct Boot_Info *bootInfo) {
        this lockKernel() became duplicative */
     /* lockKernel(); */
     Init_Interrupts(0);
-    Print("Init_SMP\n");
     Init_SMP();
-    Print("/Init_SMP\n");
-    TODO_P(PROJECT_VIRTUAL_MEMORY_A,
-           "initialize virtual memory page tables.");
+
+    // TODO_P(PROJECT_VIRTUAL_MEMORY_A, "initialize virtual memory page tables.");
+    Init_VM(bootInfo);
+
     Init_Scheduler(0, (void *)KERN_STACK);
     Init_Traps();
     Init_Local_APIC(0);
@@ -172,9 +172,10 @@ void Main(struct Boot_Info *bootInfo) {
     Mount_Root_Filesystem();
 
     TODO_P(PROJECT_VIRTUAL_MEMORY_A, "initialize page file.");
+    //Init_Paging();
 
     Set_Current_Attr(ATTRIB(BLACK, GREEN | BRIGHT));
-    Print("Never gonna give you up\n");
+    // Print("Never gonna give you up\n");
     Print("Welcome to GeekOS!\n");
     Set_Current_Attr(ATTRIB(BLACK, GRAY));
 
