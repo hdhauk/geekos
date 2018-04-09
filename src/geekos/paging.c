@@ -170,41 +170,39 @@ void Identity_Map_Page(pde_t *currentPageDir, unsigned int address, int flags) {
 }
 
 void Identity_Map_Page2(unsigned int address, int flags) {
-    Print("Identity mapping %x\n", address);
+    Print("Identity mapping 0x%x\n", address);
 
     int pd_index = PAGE_DIRECTORY_INDEX(address);
     Print("Identity mapping  pd_index = %d\n", pd_index);
 
 
     pte_t *page_table = 0;
-    pde_t *currentPageDirEntry = &kernel_page_dir[pd_index];
+    pde_t *currentPageDirEntry = kernel_page_dir + pd_index;
 
-
+    // Allocate page dir entry if not present.
     if (!currentPageDirEntry->present){
-        Print("allocation page directory entry\n");
+        Print("allocation page directory entry aka a page table...\n");
         page_table = (pte_t*)Alloc_Page();
         memset(page_table,'\0',PAGE_SIZE);
         currentPageDirEntry->present = 1;              // flag this page as present
-        currentPageDirEntry->flags = VM_WRITE;         // set permissions
+        currentPageDirEntry->flags = VM_WRITE | VM_USER;         // set permissions
         currentPageDirEntry->pageTableBaseAddr = PAGE_ALIGNED_ADDR(page_table);
 
 
     } else {
+        // cool we already have a page dir entry
         page_table = (pte_t *)(currentPageDirEntry->pageTableBaseAddr << 12);
     }
 
     int pt_index = PAGE_TABLE_INDEX(address);
     Print("Identity mapping  pt_index = %d\n", pt_index);
     if (!page_table[pt_index].present){
-        Print("allocation page table entry\n");
+        Print("allocation page table entry aka a page\n");
         page_table[pt_index].present = 1;
         page_table[pt_index].flags = flags;
-        page_table[pt_index].pageBaseAddr = PAGE_ADDR(address);
+        page_table[pt_index].pageBaseAddr = PAGE_ALIGNED_ADDR(address);
+        page_table[pt_index].flags = VM_USER | VM_WRITE;
     }
-
-
-    // TODO: if page not exist --> allocate
-
 }
 
 /* ----------------------------------------------------------------------
@@ -235,20 +233,17 @@ void Init_VM(struct Boot_Info *bootInfo) {
     page_directory = (pde_t*)Alloc_Page();
     memset(page_directory,'\0',PAGE_SIZE); // set all zeroes
 
-    Identity_Map_Page2(0xFEE00000, VM_WRITE);
-    Identity_Map_Page2(0xFEC00000, VM_WRITE);
 
 
-    int memSizeB = bootInfo->memSizeKB * 1000;
-    Print("bootInfo->memSizeKB = %d\n", bootInfo->memSizeKB);
-    Print("memSizeB = %d\n",memSizeB);
-    
+    int memSizeB = bootInfo->memSizeKB * 1024;
+    KASSERT(PAGE_DIRECTORY_INDEX(memSizeB) <= NUM_PAGE_DIR_ENTRIES);
+    Print("need %d page directory entries\n",PAGE_DIRECTORY_INDEX(memSizeB));
     uint_t counter = 0;
     for (i=0; i <= PAGE_DIRECTORY_INDEX(memSizeB); i++) {
         page_table = (pte_t*)Alloc_Page();          // Alloc a page table
         memset(page_table,'\0',PAGE_SIZE);
         page_directory[i].present = 1;              // flag this page as present
-        page_directory[i].flags = VM_WRITE;         // set permissions
+        page_directory[i].flags = VM_WRITE | VM_USER;          // set permissions
 
         // Link page into page directory
         page_directory[i].pageTableBaseAddr = (uint_t)PAGE_ALIGNED_ADDR(page_table);
@@ -258,34 +253,35 @@ void Init_VM(struct Boot_Info *bootInfo) {
         for(j=0; j < NUM_PAGE_TABLE_ENTRIES; j++) {
             if (j == 0 && i == 0){
                 // skip first page
+                Print("skipping page %d in table %d at addr %x\n", j, i, counter);
                 counter += PAGE_SIZE;
                 continue;
             }
-            page_table[j].pageBaseAddr = counter;
+
+            page_table[j].pageBaseAddr = PAGE_ALIGNED_ADDR(counter);
             counter += PAGE_SIZE;
             page_table[j].present = 1;
-            page_table[j].flags = VM_WRITE;
-
+            page_table[j].flags = VM_USER | VM_WRITE;
         }
     }
 
     // Save kernel page directory.
     kernel_page_dir = page_directory;
 
+    Identity_Map_Page2(0xFEE00000, VM_WRITE);
+    Identity_Map_Page2(0xFEC00000, VM_WRITE);
+
+
+
     Enable_Paging(page_directory);
     Install_Interrupt_Handler(14, Page_Fault_Handler);
     Install_Interrupt_Handler(46, Page_Fault_Handler);
-
-    /*
-    */
-
-
     // TODO_P(PROJECT_VIRTUAL_MEMORY_A, "Build initial kernel page directory and page tables");
 }
 
 void Init_Secondary_VM() {
     Enable_Paging(kernel_page_dir);
-    TODO_P(PROJECT_VIRTUAL_MEMORY_A, "enable paging on secondary cores");
+    //TODO_P(PROJECT_VIRTUAL_MEMORY_A, "enable paging on secondary cores");
 }
 
 /**
