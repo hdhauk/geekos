@@ -57,7 +57,8 @@ ALL_TARGETS := diskc.img diskd.img gfs-1024x2048.img
 
 
 # Kernel source file containing implementation of user address space support
-USER_IMP_C := userseg.c
+#USER_IMP_C := userseg.c
+USER_IMP_C := uservm.c
 # Kernel source files
 KERNEL_C_SRCS := idt.c int.c trap.c irq.c io.c \
 	keyboard.c screen.c timer.c \
@@ -147,7 +148,7 @@ KERNEL_ENTRY = $(SYM_PFX)Main
 KERNEL_ENTRY_2ND = $(SYM_PFX)Secondary_Start
 
 # Base address of user programs
-USER_BASE_ADDR := 0x1000
+LIN_USER_BASE_ADDR := 0x1000
 
 # User program (libc) entry point function
 USER_ENTRY = $(SYM_PFX)_Entry
@@ -287,7 +288,7 @@ libc/%.o : libc/%.s
 # file size (and thus time to load the executable)
 user/%.exe : user/%.c libc/libc.a libc/entry.o $(ALL_INCLUDES)
 	$(TARGET_CC) -c $(CC_GENERAL_OPTS) $(CC_USER_OPTS) $< -o user/$*.o
-	$(TARGET_LD) $(LD_GENERAL_OPTS) -o $@ -Ttext $(USER_BASE_ADDR) -e $(USER_ENTRY) libc/entry.o user/$*.o libc/libc.a
+	$(TARGET_LD) $(LD_GENERAL_OPTS) -o $@ -Ttext $(LIN_USER_BASE_ADDR) -e $(USER_ENTRY) libc/entry.o user/$*.o libc/libc.a
 ifeq ($(NON_ELF_SYSTEM),yes)
 	$(TARGET_OBJCOPY) -O elf32-i386 $@ $@
 endif

@@ -360,8 +360,7 @@ static void *Alloc_Or_Reclaim_Page(pte_t * entry, ulong_t vaddr,
         page = Find_Page_To_Page_Out();
         KASSERT(page->flags & PAGE_PAGEABLE);
         paddr = (void *)Get_Page_Address(page);
-        Debug("Selected page at addr %p (age = %d)\n", paddr,
-              page->clock);
+        Debug("Selected page at addr %p (age = %d)\n", paddr, page->clock);
 
         /* Make the page temporarily unpageable (can't let another process steal it) */
         page->flags &= ~(PAGE_PAGEABLE);
@@ -369,8 +368,27 @@ static void *Alloc_Or_Reclaim_Page(pte_t * entry, ulong_t vaddr,
         /* Lock the page so it cannot be freed while we're writing */
         Debug("locking page at %p for writing\n", paddr);
         Lock_Page(page);
-        TODO_P(PROJECT_VIRTUAL_MEMORY_B,
-               "write page out to backing storage");
+
+        //TODO_P(PROJECT_VIRTUAL_MEMORY_B, "write page out to backing storage");
+        int pagefile_index = Find_Space_On_Paging_File();
+
+        Write_To_Paging_File(paddr, page->vaddr, pagefile_index);
+        if (page->flags & PAGE_ALLOCATED)
+        {
+            // page in use --> update bookeeping
+            //  update page table --> page now on disk
+            page->entry->kernelInfo = KINFO_PAGE_ON_DISK;
+            page->entry->present = 0;
+            page->entry->pageBaseAddr = pagefile_index;
+        } else {
+            Free_Space_On_Paging_File(pagefile_index);
+
+            // Its still allocated though to us now
+            page->flags |= PAGE_ALLOCATED;
+        }
+
+
+
         TODO_P(PROJECT_MMAP, "write page out to backing storage");
 
 

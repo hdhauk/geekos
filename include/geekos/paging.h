@@ -34,6 +34,13 @@ struct User_Context;
 
 #define PAGE_ALIGNED_ADDR(x)   (((unsigned int) (x)) >> 12)
 #define PAGE_ADDR(x)   (PAGE_ALIGNED_ADDR(x) << 12)
+#define PAGE_ADDR_BY_IDX(x, y) (((x) << 22) + ((y) << 12))
+
+
+#define END_OF_VM       0x70000000
+#define LIN_USER_BASE_ADDR  0x80000000
+#define LIN_END_OF_VM (0x80000000 + 0x70000000)
+#define DEFAULT_USER_STACK_SIZE 4096
 
 /*
  * Bits for flags field of pde_t and pte_t.
@@ -43,6 +50,12 @@ struct User_Context;
 #define VM_NOCACHE 8            /* Memory should not be cached */
 #define VM_READ    0            /* Memory can be read (ignored for x86) */
 #define VM_EXEC    0            /* Memory can be executed (ignored for x86) */
+
+// Block(or Sector) structure
+typedef struct {
+    char byte[512];
+} block_t;
+
 
 
 /*
@@ -114,6 +127,8 @@ extern void Flush_TLB(void);
 extern void Set_PDBR(const pde_t * pageDir);
 extern pde_t *Get_PDBR(void);
 extern void Enable_Paging(pde_t * pageDir);
+
+void Identity_Map_Page(pde_t *base_page_dir, unsigned int address, int flags);
 
 /*
  * Return the address that caused a page fault.

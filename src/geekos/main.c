@@ -171,8 +171,9 @@ void Main(struct Boot_Info *bootInfo) {
 
     Mount_Root_Filesystem();
 
-    TODO_P(PROJECT_VIRTUAL_MEMORY_A, "initialize page file.");
-    //Init_Paging();
+    // TODO_P(PROJECT_VIRTUAL_MEMORY_A, "initialize page file.");
+    Print("about to run Init_Paging()\n");
+    Init_Paging();
 
     Set_Current_Attr(ATTRIB(BLACK, GREEN | BRIGHT));
     // Print("Never gonna give you up\n");
