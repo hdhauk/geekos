@@ -208,7 +208,7 @@ static int GFS3_Format(struct Block_Device *blockDev
 }
 
 static int GFS3_Mount(struct Mount_Point *mountPoint) {
-    TODO_P(PROJECT_GFS3, "GeekOS filesystem mount operation");
+    // TODO_P(PROJECT_GFS3, "GeekOS filesystem mount operation");
     return EUNSUPPORTED;
 }
 

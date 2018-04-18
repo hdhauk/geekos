@@ -203,6 +203,11 @@ int Load_User_Program(char *exeFileData, ulong_t exeFileLength,
             // Print("\t\t%d table pages needed for segment #%d in page_dir[%d]\n", required_page_table_entries, i, j);
             int k;
             for(k=0; k < required_page_table_entries; k++) {
+                if (k == 0 && j == 0 && i == 0){
+                    Print("\tskipping null page\n");
+                    continue;
+                }
+
                 lin_addr = PAGE_ADDR(startAddress + PAGE_ADDR_BY_IDX(j, k)); // lin_addr?
                 phy_addr = Alloc_Pageable_Page(&pte[k], lin_addr);
                 //Print("\t\t\tlin_addr = 0x%x\tphy_addr = 0x%x\n", (uint_t )lin_addr, (uint_t )phy_addr );
@@ -254,6 +259,7 @@ int Load_User_Program(char *exeFileData, ulong_t exeFileLength,
     // Identity map APIC and APIC-IO
     Identity_Map_Page(base_page_directory,0xFEE00000, VM_WRITE);
     Identity_Map_Page(base_page_directory,0xFEC00000, VM_WRITE);
+
 
 
 

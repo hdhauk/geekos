@@ -124,7 +124,7 @@ union type_pun_workaround {
 
     /* rest of your handling code here */
     //TODO_P(PROJECT_VIRTUAL_MEMORY_B, "handle page faults");
-    Print("Page fault! eip = 0x%x\n", (uint_t )state->eip);
+    Print("Page fault! eip = 0x%x\taddress = 0x%x\n", (uint_t )state->eip, (uint_t)address);
     if(faultCode.protectionViolation == 0) // Non-present page
     {
         pde_t* pde;

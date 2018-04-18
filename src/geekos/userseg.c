@@ -84,8 +84,7 @@ extern struct User_Context *Create_User_Context(ulong_t size) {
     if(userDebug)
         Print("Allocated descriptor %d for LDT\n",
               Get_Descriptor_Index(context->ldtDescriptor));
-    Init_LDT_Descriptor(context->ldtDescriptor, context->ldt,
-                        NUM_USER_LDT_ENTRIES);
+    Init_LDT_Descriptor(context->ldtDescriptor, context->ldt, NUM_USER_LDT_ENTRIES);
     index = Get_Descriptor_Index(context->ldtDescriptor);
     context->ldtSelector = Selector(KERNEL_PRIVILEGE, true, index);
 
