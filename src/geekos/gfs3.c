@@ -30,6 +30,13 @@
  * Private data and functions
  * ---------------------------------------------------------------------- */
 
+struct GFS3_Instance {
+    struct gfs3_superblock *superblock;
+    struct FS_Buffer_Cache *fs_buf_cache;
+    // TODO
+};
+
+
 
 /* ----------------------------------------------------------------------
  * Implementation of VFS operations
@@ -207,8 +214,47 @@ static int GFS3_Format(struct Block_Device *blockDev
     return EUNSUPPORTED;
 }
 
-static int GFS3_Mount(struct Mount_Point *mountPoint) {
-    TODO_P(PROJECT_GFS3, "GeekOS filesystem mount operation");
+int GFS3_Mount(struct Mount_Point *mountPoint) {
+    Print("GFS3_MOUNT > start\n");
+    struct GFS3_Instance *instance = 0;
+
+
+    // Allocate memory for instance.
+    instance = (struct GFS3_Instance *)Malloc(sizeof(struct GFS3_Instance));
+    if (instance == 0){ return ENOMEM; }
+    memset(instance, '\0', sizeof(struct GFS3_Instance));
+
+    // create fs-buffer
+    instance->fs_buf_cache = Create_FS_Buffer_Cache(mountPoint->dev,GFS3_BLOCK_SIZE);
+
+
+    // read superblock
+    struct FS_Buffer *buf;
+    int n = Get_FS_Buffer(instance->fs_buf_cache, GFS3_SUPERBLOCK, &buf);
+    if (n != 0 ){
+        Print("failed to get FS_Buffer\n");
+        return EUNSPECIFIED;
+    }
+    instance->superblock = (struct gfs3_superblock *)buf->data + PFAT_BOOT_RECORD_OFFSET;
+
+
+    // check magic number
+    if (instance->superblock->gfs3_magic != GFS3_MAGIC){
+        Print("\tfount magic number 0x%x, but want 0x%x\n", instance->superblock->gfs3_magic, GFS3_MAGIC);
+        return EINVALIDFS;
+    }
+
+    // check version number
+    if (instance->superblock->gfs3_version != GFS3_VERSION){
+        Print("\tfount version number 0x%x, but want 0x%x\n", instance->superblock->gfs3_version, GFS3_VERSION);
+        return EINVALIDFS;
+    }
+
+
+
+
+
+    // TODO_P(PROJECT_GFS3, "GeekOS filesystem mount operation");
     return EUNSUPPORTED;
 }
 

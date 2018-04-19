@@ -31,7 +31,7 @@ DISP_OPTION = $(shell xdpyinfo 2> /dev/null 1> /dev/null && echo -sdl || echo -c
 
 run: all gdbinit
 	echo $(NO_DISPLAY)
-	$(QEMU) $(DISP_OPTION) -drive file=diskc.img,index=0,format=raw $(GDB_OPT) $(ARGS)
+	$(QEMU) $(DISP_OPTION) -drive file=diskc.img,index=0,format=raw $(GDB_OPT) $(ARGS) -hdb gfs3-512k.img
 
 # build an ISO CD-rom image
 iso: all 

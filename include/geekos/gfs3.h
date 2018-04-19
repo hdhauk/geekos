@@ -26,9 +26,14 @@ typedef unsigned int gfs3_inodenum;     /* For inode numbers */
 #define GFS3_FILE 2
 
 #define GFS3_MAGIC 0x47465333
+#define GFS3_VERSION 0x00000100
 
 #define GFS3_INUM_ROOT   1
 #define GFS3_INUM_INUSE_BITS 2
+
+#define GFS3_BLOCK_SIZE 512 /* is this right!? */
+#define GFS3_SUPERBLOCK 0   /* is this right!? */
+
 
 /* ==Structures== */
 struct gfs3_superblock {
@@ -69,6 +74,8 @@ struct gfs3_dirent {
 };
 
 void Init_GFS3(void);
+
+int GFS3_Mount(struct Mount_Point *mountPoint);
 
 
 #endif

@@ -33,6 +33,7 @@
 #include <geekos/pipe.h>
 #include <geekos/mem.h>
 #include <geekos/smp.h>
+#include <geekos/gfs3.h>
 
 extern Spin_Lock_t kthreadLock;
 
@@ -454,8 +455,12 @@ static int Sys_Mount(struct Interrupt_State *state) {
      * and invoke the Mount() VFS function.  You will need to check
      * to make sure they are correctly nul-terminated.
      */
-    TODO_P(PROJECT_FS, "Mount system call");
-    rc = EUNSUPPORTED;
+
+    rc = Mount(args->devname, args->prefix, args->fstype);
+
+
+    //TODO_P(PROJECT_FS, "Mount system call");
+    //rc = EUNSUPPORTED;
   done:
     if(args != 0)
         Free(args);
