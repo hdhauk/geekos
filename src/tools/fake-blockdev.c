@@ -185,6 +185,7 @@ struct Filesystem_Ops *gfs_ops;
 bool Register_Filesystem(const char *fsName
                          __attribute__ ((unused)),
                          struct Filesystem_Ops *fsOps) {
+
     gfs_ops = fsOps;
     return 1;
 }

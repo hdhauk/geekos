@@ -68,7 +68,7 @@ static struct Filesystem_List s_filesystemList;
 /* Registered paging device. */
 static struct Paging_Device *s_pagingDevice;
 
-#define MAX_PREFIX_LEN 16
+#define GFS3_MAX_PREFIX_LEN /*16*/63
 
 /*
  * Unpack a path into prefix and suffix.
@@ -81,7 +81,7 @@ static struct Paging_Device *s_pagingDevice;
  *   pSuffix - stores the pointer to the suffix part of path
  * Returns: true if path is valid, false if not
  */
-static bool Unpack_Path(const char *path, char *prefix,
+/*static*/ bool Unpack_Path(const char *path, char *prefix,
                         const char **pSuffix) {
     char *slash;
     size_t pfxLen;
@@ -102,17 +102,17 @@ static bool Unpack_Path(const char *path, char *prefix,
          * the filesystem mounted on the prefix.
          */
         pfxLen = strlen(path);
-        if(pfxLen == 0 || pfxLen > MAX_PREFIX_LEN)
+        if(pfxLen == 0 || pfxLen > GFS3_MAX_PREFIX_LEN)
             return false;
         strcpy(prefix, path);
         *pSuffix = "/";
     } else {
         /*
          * Determine length of file prefix.
-         * It needs to be non-zero, but less than MAX_PREFIX_LEN.
+         * It needs to be non-zero, but less than GFS3_MAX_PREFIX_LEN.
          */
         pfxLen = slash - path;
-        if(pfxLen == 0 || pfxLen > MAX_PREFIX_LEN)
+        if(pfxLen == 0 || pfxLen > GFS3_MAX_PREFIX_LEN)
             return false;
 
         /* Format the path prefix as a string */
@@ -186,7 +186,7 @@ static int Do_Open(const char *path, int mode, struct File **pFile,
                    int (*openFunc) (struct Mount_Point * mountPoint,
                                     const char *path, int mode,
                                     struct File ** pFile)) {
-    char prefix[MAX_PREFIX_LEN + 1];
+    char prefix[GFS3_MAX_PREFIX_LEN + 1];
     const char *suffix;
     struct Mount_Point *mountPoint;
     int rc;
@@ -194,10 +194,13 @@ static int Do_Open(const char *path, int mode, struct File **pFile,
     if(!Unpack_Path(path, prefix, &suffix))
         return ENOTFOUND;
 
+
     /* Get mount point for path */
     mountPoint = Lookup_Mount_Point(prefix);
     if(mountPoint == 0)
         return ENOTFOUND;
+
+
 
     /* Call into actual Open() or Open_Directory() function. */
     rc = openFunc(mountPoint, suffix, mode, pFile);
@@ -215,6 +218,7 @@ static int Do_Open(const char *path, int mode, struct File **pFile,
 static int Do_Open_File(struct Mount_Point *mountPoint, const char *path,
                         int mode, struct File **pFile) {
     KASSERT(mountPoint->ops->Open != 0);        /* All filesystems must implement Open(). */
+
     return mountPoint->ops->Open(mountPoint, path, mode, pFile);
 }
 
@@ -323,7 +327,7 @@ int Mount(const char *devname, const char *pathPrefix, const char *fstype) {
     while (*pathPrefix == '/')
         ++pathPrefix;
 
-    if(strlen(pathPrefix) > MAX_PREFIX_LEN)
+    if(strlen(pathPrefix) > GFS3_MAX_PREFIX_LEN)
         return ENAMETOOLONG;
 
     /* Find the named filesystem type */
@@ -390,6 +394,9 @@ int Mount(const char *devname, const char *pathPrefix, const char *fstype) {
  * Returns: 0 if successful, error code (< 0) if not
  */
 int Open(const char *path, int mode, struct File **pFile) {
+
+
+
     int rc = Do_Open(path, mode, pFile, &Do_Open_File);
     /*if (rc != 0) { Print("File open failed with code %d\n", rc); } */
     return rc;
@@ -424,7 +431,7 @@ int Close(struct File *file) {
  * Return: 0 if successful, error code (< 0) if not
  */
 int Stat(const char *path, struct VFS_File_Stat *stat) {
-    char prefix[MAX_PREFIX_LEN + 1];
+    char prefix[GFS3_MAX_PREFIX_LEN + 1];
     const char *suffix;
     struct Mount_Point *mountPoint;
 
@@ -503,10 +510,14 @@ struct File *Allocate_File(const struct File_Ops *ops, int filePos,
  * Returns: 0 if successful, error code (< 0) if not
  */
 int FStat(struct File *file, struct VFS_File_Stat *stat) {
-    if(file->ops->FStat == 0)
+    if(file->ops->FStat == 0){
+        Print("fuck...\n");
         return EUNSUPPORTED;
-    else
+
+    } else {
         return file->ops->FStat(file, stat);
+
+    }
 }
 
 /*
@@ -616,7 +627,7 @@ int Read_Fully(const char *path, void **pBuffer, ulong_t * pLen) {
  * Returns: 0 if successful, error code (< 0) if not
  */
 int Create_Directory(const char *path) {
-    char prefix[MAX_PREFIX_LEN + 1];
+    char prefix[GFS3_MAX_PREFIX_LEN + 1];
     const char *suffix;
     struct Mount_Point *mountPoint;
 
@@ -643,7 +654,7 @@ int Create_Directory(const char *path) {
  * Returns: 0 if successful, error code (< 0) if not
  */
 int Delete(const char *path, bool recursive) {
-    char prefix[MAX_PREFIX_LEN + 1];
+    char prefix[GFS3_MAX_PREFIX_LEN + 1];
     const char *suffix;
     struct Mount_Point *mountPoint;
 
@@ -671,8 +682,8 @@ int Delete(const char *path, bool recursive) {
  * Returns: 0 if successful, error code (< 0) if not
  */
 int Rename(const char *oldpath, const char *newpath) {
-    char prefix1[MAX_PREFIX_LEN + 1];
-    char prefix2[MAX_PREFIX_LEN + 1];
+    char prefix1[GFS3_MAX_PREFIX_LEN + 1];
+    char prefix2[GFS3_MAX_PREFIX_LEN + 1];
     const char *suffix1;
     const char *suffix2;
     struct Mount_Point *mountPoint1;
@@ -711,8 +722,8 @@ int Rename(const char *oldpath, const char *newpath) {
  * Returns: 0 if successful, error code (< 0) if not
  */
 int Link(const char *oldpath, const char *newpath) {
-    char prefix1[MAX_PREFIX_LEN + 1];
-    char prefix2[MAX_PREFIX_LEN + 1];
+    char prefix1[GFS3_MAX_PREFIX_LEN + 1];
+    char prefix2[GFS3_MAX_PREFIX_LEN + 1];
     const char *suffix1;
     const char *suffix2;
     struct Mount_Point *mountPoint1;
@@ -751,7 +762,7 @@ int Link(const char *oldpath, const char *newpath) {
  * Returns: 0 if successful, error code (< 0) if not
  */
 int SymLink(const char *oldpath, const char *newpath) {
-    char prefix2[MAX_PREFIX_LEN + 1];
+    char prefix2[GFS3_MAX_PREFIX_LEN + 1];
     const char *suffix2;
     struct Mount_Point *mountPoint2;
 
@@ -809,10 +820,11 @@ int Open_Directory(const char *path, struct File **pDir) {
  * Returns: 0 if successful, error code (< 0) if not
  */
 int Read_Entry(struct File *file, struct VFS_Dir_Entry *entry) {
-    if(file->ops->Read_Entry == 0)
+    if(file->ops->Read_Entry == 0){
         return EUNSUPPORTED;
-    else
+    } else{
         return file->ops->Read_Entry(file, entry);
+    }
 }
 
 /* 
@@ -827,7 +839,7 @@ int Read_Entry(struct File *file, struct VFS_Dir_Entry *entry) {
 int Disk_Properties(const char *path,
                     unsigned int *block_size,
                     unsigned int *blocks_in_filesystem) {
-    char prefix[MAX_PREFIX_LEN + 1];
+    char prefix[GFS3_MAX_PREFIX_LEN + 1];
     const char *suffix;
     struct Mount_Point *mountPoint;
 

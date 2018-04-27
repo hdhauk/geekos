@@ -174,6 +174,10 @@ int SetAcl(const char *path, int user, int permissions);
 int Disk_Properties(const char *path, unsigned int *block_size,
                     unsigned int *blocks_on_disk);
 
+
+int Convert_To_Abs_Path(char *path);
+bool Unpack_Path(const char *path, char *prefix, const char **pSuffix);
+
 #endif /* GEEKOS */
 
 #endif /* GEEKOS_VFS_H */

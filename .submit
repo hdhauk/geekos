@@ -1,0 +1,11 @@
+# Submit server .submit file for
+#  Course CMSC412
+#  Project 5B: GFS3
+
+courseName=CMSC412
+semester=201801
+projectNumber=5B
+courseKey=6e31b32f35671f6b
+authentication.type=ldap
+baseURL=https://submit.cs.umd.edu:443/spring2018
+submitURL=https://submit.cs.umd.edu:443/spring2018/eclipse/SubmitProjectViaEclipse

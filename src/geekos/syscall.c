@@ -531,6 +531,7 @@ static int Sys_Open(struct Interrupt_State *state) {
         goto leave;
     }
 
+
     rc = Open(path, state->edx, &file);
     Free(path);
 
@@ -552,6 +553,36 @@ static int Sys_Open(struct Interrupt_State *state) {
  *   or an error code (< 0) if unsuccessful
  */
 static int Sys_OpenDirectory(struct Interrupt_State *state) {
+
+
+    char *path;
+    struct File *file = NULL;
+    int rc = 0;
+
+    rc = get_path_from_registers(state->ebx, state->ecx, &path);
+    if(rc != 0) {
+        goto leave;
+    }
+
+    rc = next_descriptor();
+    if(rc < 0) {
+        Free(path);
+        goto leave;
+    }
+
+
+    rc = Open_Directory(path,&file);
+    //rc = Open(path, state->edx, &file);
+
+    Free(path);
+
+    leave:
+    if(rc >= 0) {
+        return add_file_to_descriptor_table(file);
+    } else {
+        return rc;
+    }
+
     TODO_P(PROJECT_FS, "Open directory system call");
     return EUNSUPPORTED;
 }
@@ -685,6 +716,38 @@ static int Sys_Read(struct Interrupt_State *state) {
  * Returns: 0 if successful, error code (< 0) if unsuccessful
  */
 static int Sys_ReadEntry(struct Interrupt_State *state) {
+
+
+    struct VFS_Dir_Entry *dir_entry =
+            (struct VFS_Dir_Entry *)Malloc(sizeof(struct VFS_Dir_Entry));
+    int rc;
+    if (!dir_entry){
+        Print("no mem\n");
+        return ENOMEM;
+    }
+
+
+
+    struct File *file = CURRENT_THREAD->userContext->file_descriptor_table[state->ebx];
+    if (!file){
+        Print("cannot find file...\n");
+        rc = ENOTFOUND;
+        goto leave;
+    }
+
+    rc = Read_Entry(file,dir_entry);
+    if (rc){
+        Print("fail? rc = %d\n", rc);
+        goto leave;
+    }
+
+    Copy_To_User(state->ecx,dir_entry, sizeof(struct VFS_Dir_Entry));
+
+
+    leave:
+        Free(dir_entry);
+        return rc;
+
     TODO_P(PROJECT_FS, "ReadEntry system call");
     return EUNSUPPORTED;
 }
@@ -735,6 +798,32 @@ static int Sys_Write(struct Interrupt_State *state) {
  * Returns: 0 if successful, error code (< 0) if unsuccessful
  */
 static int Sys_Stat(struct Interrupt_State *state) {
+
+    struct VFS_File_Stat *file_stat =
+            (struct VFS_File_Stat *)Malloc(sizeof(struct VFS_File_Stat));
+    if (!file_stat){
+        return ENOMEM;
+    }
+
+
+    char *path;
+    int rc;
+    rc = get_path_from_registers(state->ebx, state->ecx, &path);
+    if(rc != 0) {
+        goto leave;
+    }
+
+    rc = Stat(path,file_stat);
+
+    Copy_To_User(state->edx,file_stat, sizeof(struct VFS_File_Stat));
+
+
+    leave:
+        Free(path);
+        Free(file_stat);
+        return rc;
+
+
     TODO_P(PROJECT_FS, "Stat system call");
     return EUNSUPPORTED;
 }
@@ -748,6 +837,34 @@ static int Sys_Stat(struct Interrupt_State *state) {
  * Returns: 0 if successful, error code (< 0) if unsuccessful
  */
 static int Sys_FStat(struct Interrupt_State *state) {
+
+    if(state->ebx >= USER_MAX_FILES) {
+        return EINVALID;
+    }
+
+    struct File *file = CURRENT_THREAD->userContext->file_descriptor_table[state->ebx];
+    if(file) {
+        struct VFS_File_Stat *file_stat =
+           (struct VFS_File_Stat *)Malloc(sizeof(struct VFS_File_Stat));
+        if (file_stat == 0){
+            return ENOMEM;
+        }
+
+        int rc = FStat(file,file_stat);
+        Print("\tsyscall file_stat->size = %d\n", file_stat->size);
+
+        if (!Copy_To_User(state->ecx, file_stat, sizeof(struct VFS_File_Stat))){
+            Free(file_stat);
+            return ENOMEM;
+        }
+
+        Free(file_stat);
+        return rc;
+    } else {
+        return ENOTFOUND;
+    }
+
+    KASSERT(false);
     TODO_P(PROJECT_FS, "FStat system call");
     return EUNSUPPORTED;
 }
@@ -761,6 +878,21 @@ static int Sys_FStat(struct Interrupt_State *state) {
  * Returns: 0 if successful, error code (< 0) if unsuccessful
  */
 static int Sys_Seek(struct Interrupt_State *state) {
+
+    int rc;
+
+    if(CURRENT_THREAD->userContext->file_descriptor_table[state->ebx]) {
+        struct File *file = CURRENT_THREAD->userContext->file_descriptor_table[state->ebx];
+        rc = Seek(file, state->ecx);
+        return rc;
+    }else{
+        return EINVALID;
+    }
+
+
+
+
+
     TODO_P(PROJECT_FS, "Seek system call");
     return EUNSUPPORTED;
 }

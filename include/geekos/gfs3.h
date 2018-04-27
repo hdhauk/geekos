@@ -34,6 +34,23 @@ typedef unsigned int gfs3_inodenum;     /* For inode numbers */
 #define GFS3_BLOCK_SIZE 512 /* is this right!? */
 #define GFS3_SUPERBLOCK 0   /* is this right!? */
 
+#define GFS3_DIRECTORY 1
+#define GFS3_FILE 2
+#define GFS3_NOLINK_REFCOUNT 1
+#define GFS3_ROOT_INODENUM 1
+#define GFS3_INODE_SIZE 32
+#define GFS3_INODES_PER_BLOCK 16
+
+
+#define BLOCKNUM_FROM_INODENUM(num) (((gfs3_blocknum) ((int) num / GFS3_INODES_PER_BLOCK)) +1)
+#define OFFSET_IN_BLOCK(num) (((num % GFS3_INODES_PER_BLOCK))*GFS3_INODE_SIZE)
+
+#define BOOL_PRINT(x) ((x)?"true":"false")
+
+#define GFS3_MAX_PREFIX_LEN 63   /*characters*/
+#define GFS3_MAX_PATH_LEN 265    /*characters*/
+
+
 
 /* ==Structures== */
 struct gfs3_superblock {
@@ -75,7 +92,7 @@ struct gfs3_dirent {
 
 void Init_GFS3(void);
 
-int GFS3_Mount(struct Mount_Point *mountPoint);
+static int GFS3_Mount(struct Mount_Point *mountPoint);
 
 
 #endif

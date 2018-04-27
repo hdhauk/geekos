@@ -218,7 +218,7 @@ int tReadEntry() {
     if((retR < 0) ||
        (strncmp(dirEntry.name, "d1", 2) != 0) ||
        (!dirEntry.stats.isDirectory)) {
-        Print("Dir name (d1) not correct %s %d.\n", dirEntry.name,
+        Print("Dir name (d1) not correct \"%s\" %d.\n", dirEntry.name,
               dirEntry.stats.isDirectory);
         return -1;
     }
@@ -297,6 +297,8 @@ int tBasicStat() {
         return -1;
     }
     //(void)Delete("/d/basic8f", false);
+    Print("retS = %d\n", retS);
+    Print("s->size = %d\n", s.size);
 
     return (retS >= 0) ? 1 : -1;
 }

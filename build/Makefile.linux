@@ -31,7 +31,7 @@ DISP_OPTION = $(shell xdpyinfo 2> /dev/null 1> /dev/null && echo -sdl || echo -c
 
 run: all gdbinit
 	echo $(NO_DISPLAY)
-	$(QEMU) $(DISP_OPTION) -drive file=diskc.img,index=0,format=raw $(GDB_OPT) $(ARGS) -hdb gfs3-512k.img
+	$(QEMU) $(DISP_OPTION) -drive file=diskc.img,index=0,format=raw $(GDB_OPT) $(ARGS) -hdb gfs3-10M-tstprep.img
 
 # build an ISO CD-rom image
 iso: all 
@@ -48,7 +48,7 @@ dbgcd : all
 	$(QEMU) -s -S -boot d -cdrom cd.iso
 
 dbgrun : all gdbinit
-	$(QEMU) $(DISP_OPTION) -no-fd-bootchk -m 3 -S $(GDB_OPT) diskc.img $(ARGS)
+	$(QEMU) $(DISP_OPTION) -no-fd-bootchk -m 3 -S $(GDB_OPT) diskc.img $(ARGS) -hdb gfs3-10M-tstprep.img
 
 dbg : all
 	gdb geekos/kernel.exe
