@@ -621,7 +621,25 @@ static int Sys_Close(struct Interrupt_State *state) {
  * Returns: 0 if successful, error code (< 0) if unsuccessful
  */
 static int Sys_Delete(struct Interrupt_State *state) {
-    TODO_P(PROJECT_FS, "Delete system call");
+
+
+    char *path;
+    int rc = 0;
+
+    rc = get_path_from_registers(state->ebx, state->ecx, &path);
+    if(rc != 0) {
+        return EINVALID;
+    }
+
+
+    rc = Delete(path, (bool)state->ebx);
+    Free(path);
+
+    return rc;
+
+
+
+
     return EUNSUPPORTED;
 }
 
@@ -851,7 +869,7 @@ static int Sys_FStat(struct Interrupt_State *state) {
         }
 
         int rc = FStat(file,file_stat);
-        Print("\tsyscall file_stat->size = %d\n", file_stat->size);
+        //Print("\tsyscall file_stat->size = %d\n", file_stat->size);
 
         if (!Copy_To_User(state->ecx, file_stat, sizeof(struct VFS_File_Stat))){
             Free(file_stat);
@@ -906,7 +924,39 @@ static int Sys_Seek(struct Interrupt_State *state) {
  * Returns: 0 if successful, error code (< 0) if unsuccessful
  */
 static int Sys_CreateDir(struct Interrupt_State *state) {
-    TODO_P(PROJECT_FS, "CreateDir system call");
+    //TODO_P(PROJECT_FS, "CreateDir system call");
+
+    char *path;
+    struct File *file = NULL;
+    int rc = 0;
+
+    rc = get_path_from_registers(state->ebx, state->ecx, &path);
+    if(rc != 0) {
+        goto leave;
+    }
+
+    rc = next_descriptor();
+    if(rc < 0) {
+        Free(path);
+        goto leave;
+    }
+
+
+    rc = Create_Directory(path);
+    //rc = Open(path, state->edx, &file);
+
+    Free(path);
+
+    leave:
+    if(rc >= 0) {
+        return add_file_to_descriptor_table(file);
+    } else {
+        return rc;
+    }
+
+
+    return 0;
+
     return EUNSUPPORTED;
 }
 

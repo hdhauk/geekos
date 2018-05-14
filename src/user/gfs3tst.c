@@ -734,8 +734,14 @@ int tBasicDelete() {
     }
 
     retD = Delete("/d/basic5f", false);
+    if (retD < 0){
+        Print("failed delete. retD = %d\n",retD);
+    }
 
     retS = Stat("/d/basic5f", &s);
+    if (!(retS < 0)){
+        Print("failed stat. retS = %d\n",retS);
+    }
 
     return (retD >= 0 && retS < 0) ? 1 : -1;
 }
@@ -832,6 +838,9 @@ int tDeleteNonEmptyDirectory() {
     }
 
     retD = Delete("/d/dir4d", false);
+    if (retD >= 0){
+        Print("\tdeleting /d/dir4d should fail!\n ");
+    }
 
     (void)Delete("/d/dir4d/file", false);
     (void)Delete("/d/dir4d", false);
@@ -863,11 +872,15 @@ int tWriteReread(unsigned int howManyKBs, char const *fileName,
     for(j = 0; j < 100; j++)
         buffer[j] = j;
 
+    Print("Opening: %s\n", fileName);
     fd = Open(fileName, O_CREATE | O_WRITE);
-    if(fd < 0)
+    if(fd < 0){
+        Print("failed opening file...\n");
         return -1;
+    }
 
     if(reverseWrite) {
+    Print("Writing...\n");
         for(i = (howManyKBs * 10) - 1; i >= 0; i--) {
             buffer[0] = i % 256;
             retS = Seek(fd, i * 100);
@@ -909,6 +922,7 @@ int tWriteReread(unsigned int howManyKBs, char const *fileName,
             buffer[0] = i % 256;
             retW = Write(fd, buffer, 100);
             if(retW != 100) {
+                Print("did not get correct ret val\n");
                 ret = -1;
                 break;
             }
@@ -945,7 +959,7 @@ int tWriteReread(unsigned int howManyKBs, char const *fileName,
 
     retS = Stat(fileName, &s);
     if(retS != 0) {
-        Print("stat failed\n");
+        Print("stat failed: retS = %d\n", retS);
         ret = -1;
     }
     if(s.size != (int)howManyKBs * 1000) {

@@ -40,6 +40,7 @@ typedef unsigned int gfs3_inodenum;     /* For inode numbers */
 #define GFS3_ROOT_INODENUM 1
 #define GFS3_INODE_SIZE 32
 #define GFS3_INODES_PER_BLOCK 16
+#define GFS3_BITMAP_SIZE (GFS3_BLOCK_SIZE * 5)
 
 
 #define BLOCKNUM_FROM_INODENUM(num) (((gfs3_blocknum) ((int) num / GFS3_INODES_PER_BLOCK)) +1)
